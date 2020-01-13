@@ -70,5 +70,34 @@ Everything is in the title.
 
 #### Singletons (Haskell)
 Implementation of a compile-time checked vector using features mimicking dependent types.  
-[details](https://www.codewars.com/kata/54750ed320c64c64e20002e2)
+[details](https://www.codewars.com/kata/54750ed320c64c64e20002e2)  
 [code](https://github.com/de-passage/codewars-solutions/blob/master/haskell/singletons.hs)
+
+## 3 Kyu 
+
+#### Magic compare (C++)
+A simple class that allow three way comparisons (a < b < c) in C++.  
+[details](https://www.codewars.com/kata/59ad0147485a4d9d3f0000a9)  
+[code](https://github.com/de-passage/codewars-solutions/blob/master/cpp/magic-compare.hpp)
+
+#### Constructing finite fields using binary polynoms (Haskell)
+Definition of the binary polynom field and ring and their operations.  
+[details](https://www.codewars.com/kata/54f1b7b3f58ba8ee720005a8)  
+[code](https://github.com/de-passage/codewars-solutions/blob/master/haskell/binary-polynoms.hs)
+
+#### Battleship field validator (C++)
+Checks that the positions of ships on a board of Battleship are legal.  
+[details](https://www.codewars.com/kata/52bb6539a4cf1b12d90005b7)  
+[code](https://github.com/de-passage/codewars-solutions/blob/master/cpp/battleship.hpp)
+
+#### Isomorphism (Haskell)
+Definition of some isomorphisms using the Haskell type system.  
+[details](https://www.codewars.com/kata/5922543bf9c15705d0000020)  
+[code](https://github.com/de-passage/codewars-solutions/blob/master/haskell/isomorphisms.hs)
+
+## 4 Kyu
+
+#### Five fundamentals monads
+Implementation of Identity, Maybe, State, Reader and Writer.  
+[details](https://www.codewars.com/kata/547202bdf7587835d9000c46)  
+[code](https://github.com/de-passage/codewars-solutions/blob/master/haskell/five-monads.hs)
