@@ -34,9 +34,14 @@ A mini-library of van Laarhoven style lenses.
 ## 2 Kyu
 
 #### Yoneda Lemma (Haskell)
-Proof of the Yoneda Lemma in Hask, with some light application to counting instances of natural transformations.
-[details](https://www.codewars.com/kata/5af33bcdde4c7f94a90000b3)
+Proof of the Yoneda Lemma in Hask, with some light application to counting instances of natural transformations.  
+[details](https://www.codewars.com/kata/5af33bcdde4c7f94a90000b3)  
 [code](https://github.com/de-passage/codewars-solutions/blob/master/haskell/yoneda.hs)
+
+#### Count them all! (Haskell)
+Fun with the cardinality of types: count and enumerate all members of given types, including function and functor types.  
+[details](https://www.codewars.com/kata/5b1bdc2bccef79e948000086)  
+[code](https://github.com/de-passage/codewars-solutions/blob/master/haskell/count-them-all.hs)
 
 #### Symbolic differentiation of prefix expression (Haskell)
 I like this one. Parses a mathematical expression in prefix expression then computes its derivative and simplifies it.  
