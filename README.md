@@ -40,7 +40,7 @@ Proof of the Yoneda Lemma in Hask, with some light application to counting insta
 
 #### Symbolic differentiation of prefix expression (Haskell)
 I like this one. Parses a mathematical expression in prefix expression then computes its derivative and simplifies it.  
-[details](https://www.codewars.com/kata/584daf7215ac503d5a0001ae)
+[details](https://www.codewars.com/kata/584daf7215ac503d5a0001ae)  
 [code](https://github.com/de-passage/codewars-solutions/blob/master/haskell/symbolic-differentiation.hs)
 
 #### Finally tagless interpreter (Haskell)
@@ -102,7 +102,7 @@ Definition of some isomorphisms using the Haskell type system.
 
 ## 4 Kyu
 
-#### Five fundamentals monads
+#### Five fundamentals monads (Haskell)
 Implementation of Identity, Maybe, State, Reader and Writer.  
 [details](https://www.codewars.com/kata/547202bdf7587835d9000c46)  
 [code](https://github.com/de-passage/codewars-solutions/blob/master/haskell/five-monads.hs)
