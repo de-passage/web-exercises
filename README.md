@@ -6,6 +6,11 @@ I'll only list here non trivial solutions to exercices that I have not authored.
 
 ## 1 Kyu
 
+#### Coroutines (Haskell)
+Implementation of a coroutine library (pipeline of functions that can yield values repeteadly or request input).  
+[details](https://www.codewars.com/kata/547a77a6b84a1fb8bf000211)  
+[code](https://github.com/de-passage/codewars-solutions/blob/master/haskell/coroutines.hs) 
+
 #### Scott Encoding (Haskell)
 Implementation of basic algebraic data structures using Scott Encoding.  
 [details](https://www.codewars.com/kata/59c132fb70a3b7efd3000024)  
