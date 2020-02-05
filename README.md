@@ -88,6 +88,11 @@ Implementation of a compile-time checked vector using features mimicking depende
 [details](https://www.codewars.com/kata/54750ed320c64c64e20002e2)  
 [code](https://github.com/de-passage/codewars-solutions/blob/master/haskell/singletons.hs)
 
+#### The most imperative functional language? (Haskell)
+Imperative syntax in do notation using the State monad.  
+[details](https://www.codewars.com/kata/5453af58e6c920858d000823)  
+[code](https://github.com/de-passage/codewars-solutions/blob/master/haskell/imperative.hs)
+
 ## 3 Kyu 
 
 #### Magic compare (C++)
