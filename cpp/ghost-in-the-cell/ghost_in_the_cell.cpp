@@ -1,6 +1,8 @@
 #include "ghost_in_the_cell.hpp"
 
 using namespace std;
+using namespace gitc;
+
 int main() {
   graph map{parse_map()};
   entity_container entities;
