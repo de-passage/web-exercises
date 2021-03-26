@@ -25,7 +25,8 @@ class graph : private detail::graph_container {
       : base{new weight[node_count * node_count], node_count} {
     for (size_t i = 0; i < _count; ++i) {
       for (size_t j = 0; j < _count; ++j) {
-        add_edge(factory{i}, factory{j},
+        add_edge(factory{i},
+                 factory{j},
                  weight{i == j ? 0 : std::numeric_limits<int>::max()});
       }
     }
