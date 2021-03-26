@@ -1,0 +1,1 @@
+make_test(traffic-lights traffic_lights.cpp)
