@@ -5,12 +5,12 @@ using namespace gitc;
 
 int main() {
   graph map{parse_map()};
-  entity_container entities;
+  factory_container factories;
+  troop_container troops;
 
   // game loop
   while (1) {
-    parse_and_update_entities(entities);
-    // Any valid action, such as "WAIT" or "MOVE source destination cyborgs"
-    cout << "WAIT" << endl;
+    parse_and_update_entities(troops, factories);
+    cout << decide() << endl;
   }
 }

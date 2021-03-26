@@ -29,16 +29,6 @@ struct entity {
 };
 
 using entity_container = std::unordered_map<entity_id, entity>;
-
-void upsert(entity_container& container,
-            std::pair<entity_id, entity>&& to_add) {
-  auto it = container.find(to_add.first);
-  if (it != container.end()) {
-    it->second = std::move(to_add.second);
-  } else {
-    container.insert(move(to_add));
-  }
-};
 }  // namespace gitc
 
 #endif  // GUARD_DPSG_GITC_ENTITY_HPP

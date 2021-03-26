@@ -1,6 +1,7 @@
 #ifndef GUARD_DPSG_GITC_TYPES
 #define GUARD_DPSG_GITC_TYPES
 
+#include <unordered_map>
 #include <utility>
 
 namespace gitc {
@@ -65,6 +66,9 @@ struct entity_id {
     return left.id == right.id;
   }
 };
+
+using factory_container = std::unordered_map<entity_id, factory_info>;
+using troop_container = std::unordered_map<entity_id, troop_info>;
 }  // namespace gitc
 
 namespace std {
