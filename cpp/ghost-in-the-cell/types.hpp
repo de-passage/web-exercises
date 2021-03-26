@@ -36,6 +36,14 @@ struct weight {
   constexpr weight() noexcept = default;
   constexpr weight(int d) : value{d} {}
   int value{};
+
+  friend bool operator==(weight left, weight right) {
+    return left.value == right.value;
+  }
+
+  friend bool operator!=(weight left, weight right) {
+    return left.value != right.value;
+  }
 };
 
 struct factory_distance {

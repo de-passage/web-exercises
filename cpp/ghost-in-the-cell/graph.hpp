@@ -1,8 +1,10 @@
 #ifndef GUARD_DPSG_GITC_GRAPH_HPP
 #define GUARD_DPSG_GITC_GRAPH_HPP
 
-#include <numeric>
+#include <algorithm>
 #include <utility>
+
+#include "./types.hpp"
 
 namespace gitc {
 
@@ -59,12 +61,12 @@ class graph : private detail::graph_container {
   friend void swap(graph& left, graph& right) { left.swap(right); }
 
   void add_edge(factory left, factory right, weight distance) {
-    this->distance(left, right) = distance;
-    this->distance(right, left) = distance;
+    _distance(left, right) = distance;
+    _distance(right, left) = distance;
   }
 
   weight distance(factory left, factory right) const {
-    return const_cast<graph*>(this)->distance(left, right);
+    return const_cast<graph*>(this)->_distance(left, right);
   }
 
   struct node_range : private detail::graph_container {
@@ -81,7 +83,7 @@ class graph : private detail::graph_container {
   size_t node_count() const { return _count; }
 
  private:
-  weight& distance(factory left, factory right) {
+  weight& _distance(factory left, factory right) {
     return _weights[left.id() * _count + right.id()];
   }
 
