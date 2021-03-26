@@ -40,7 +40,7 @@ TEST(TrafficLights, AnotherCountryRoad) {
   int speed = 80;
   info_container lights{light_data{700, 25}, light_data{2200, 15},
                         light_data{3000, 10}, light_data{4000, 28}};
-  ASSERT_EQ(compute_speed_limit(speed, lights), 50);
+  ASSERT_EQ(compute_speed_limit(speed, lights), 49);
 }
 
 TEST(TrafficLights, GermanHighway) {

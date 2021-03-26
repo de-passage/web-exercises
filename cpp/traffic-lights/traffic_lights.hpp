@@ -11,37 +11,38 @@ struct light_data {
       : distance{dist}, duration{dur} {}
   int distance;
   int duration;
-  int count{0};
 };
 
 using info_container = vector<light_data>;
 
-int time_to_destination(int distance, int speed) {
-  return static_cast<int>(
-      floor(static_cast<float>(distance) / (static_cast<float>(speed) / 3.6)));
+double round3(double d) { return round(d * 1000) / 1000; }
+
+double time_to_destination(int speed, const light_data& data) {
+  return round3(static_cast<double>(data.distance) /
+                (static_cast<double>(speed) / 3.6));
 }
 
-float speed_to_destination(const light_data& data) {
-  return static_cast<float>(data.distance) /
-         (static_cast<float>(data.duration) * static_cast<float>(data.count) *
-          2.F) *
-         3.6F;
+double speed_to_destination(int count, const light_data& data) {
+  return round3(
+      static_cast<double>(data.distance) /
+      (static_cast<double>(data.duration) * static_cast<double>(count * 2)) *
+      3.6);
 }
 
-bool can_get_through(int speed, const light_data& d) {
-  int ttd = time_to_destination(d.distance, speed);
-  int totdur = d.duration * (2 * d.count + 1);
+bool can_get_through(int speed, const light_data& data) {
+  double arrival_time = time_to_destination(speed, data);
+  int round_at_arrival = static_cast<int>(arrival_time) / (data.duration * 2);
+  int light_turns_green = round_at_arrival * data.duration * 2;
+  int light_turns_red = data.duration * (round_at_arrival * 2 + 1);
 
-  return ttd <= totdur;
+  return arrival_time >= static_cast<double>(light_turns_green) &&
+         arrival_time < static_cast<double>(light_turns_red);
 }
 
-int next_fastest_speed(int max_speed, light_data& data) {
-  int speed = max_speed;
-  do {
-    ++data.count;
-    speed = static_cast<int>(speed_to_destination(data));
-  } while (speed >= max_speed || !can_get_through(speed, data));
-  return speed;
+int next_fastest_speed(int speed, const light_data& data) {
+  int current_round =
+      static_cast<int>(time_to_destination(speed, data)) / (data.duration * 2);
+  return static_cast<int>(floor(speed_to_destination(current_round + 1, data)));
 }
 
 int blocked_by_index(int speed, const info_container& data) {
@@ -54,7 +55,7 @@ int blocked_by_index(int speed, const info_container& data) {
   return -1;
 }
 
-int compute_speed_limit(int speed, info_container& lights) {
+int compute_speed_limit(int speed, const info_container& lights) {
   int blocker;
   while ((blocker = blocked_by_index(speed, lights)) != -1) {
     speed = next_fastest_speed(speed, lights[static_cast<size_t>(blocker)]);
