@@ -45,19 +45,21 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
 # later. Otherwise we have to add them here ourselves.
 include_directories("${gtest_SOURCE_DIR}/include")
 
+function(set_compile_options TARGET_NAME)
+if(MSVC)
+  target_compile_options(${TARGET_NAME} PRIVATE /W3 /WX)
+else ()
+  target_compile_options(${TARGET_NAME} PRIVATE -Wall -Wextra -pedantic -Wconversion)
+endif(MSVC)
+endfunction()
+
 
 function(make_test TARGET_NAME SRC_FILES) 
 
 add_executable(${TARGET_NAME} ${SRC_FILES})
 target_link_libraries(${TARGET_NAME} gtest_main)
 add_test(NAME "${TARGET_NAME}-test" COMMAND ${TARGET_NAME})
-
-if(MSVC)
-  target_compile_options(${TARGET_NAME} PRIVATE /W3 /WX)
-else ()
-  target_compile_options(${TARGET_NAME} PRIVATE -Wall -Wextra -pedantic -Wconversion)
-endif(MSVC)
-
+set_compile_options(${TARGET_NAME})
 endfunction()
 
 add_subdirectory(cpp)
