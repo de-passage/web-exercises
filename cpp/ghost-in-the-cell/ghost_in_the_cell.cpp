@@ -22,15 +22,15 @@ struct factory_info {
 };
 
 struct factory {
-  constexpr explicit factory(int id) : _id{id} {}
+  constexpr explicit factory(size_t id) : _id{id} {}
 
-  int id() const { return _id; }
+  size_t id() const { return _id; }
   friend bool operator==(factory left, factory right) noexcept {
     return left._id == right._id;
   }
 
  private:
-  int _id;
+  size_t _id;
 };
 
 struct weight {
@@ -83,7 +83,7 @@ struct entity_id {
 namespace std {
 template <>
 struct hash<factory> {
-  auto operator()(factory f) const { return hash<int>()(f.id()); }
+  auto operator()(factory f) const { return hash<size_t>()(f.id()); }
 };
 template <>
 struct hash<entity_id> {
@@ -91,7 +91,92 @@ struct hash<entity_id> {
 };
 }  // namespace std
 
-using graph = unordered_multimap<factory, factory_distance>;
+namespace detail {
+struct graph_container {
+  weight* _weights;
+  size_t _count;
+};
+}  // namespace detail
+
+class graph : private detail::graph_container {
+  using base = detail::graph_container;
+  using base::_count;
+  using base::_weights;
+
+ public:
+  explicit graph(size_t node_count)
+      : base{new weight[node_count * node_count], node_count} {
+    for (size_t i = 0; i < _count; ++i) {
+      for (size_t j = 0; j < _count; ++j) {
+        add_edge(factory{i}, factory{j},
+                 weight{i == j ? 0 : numeric_limits<int>::max()});
+      }
+    }
+  }
+
+  graph(const graph& to_copy)
+      : base{new weight[to_copy.node_count() * to_copy.node_count()],
+             to_copy.node_count()} {
+    for (size_t i = 0; i < _count; ++i) {
+      for (size_t j = 0; j < _count; ++j) {
+        factory left{i}, right{j};
+        add_edge(left, right, to_copy.distance(left, right));
+      }
+    }
+  }
+
+  graph(graph&& to_copy)
+      : base{exchange(to_copy._weights, nullptr), exchange(to_copy._count, 0)} {
+  }
+
+  graph& operator=(const graph& g) {
+    graph{g}.swap(*this);
+    return *this;
+  }
+
+  graph& operator=(graph&& g) {
+    graph{move(g)}.swap(*this);
+    return *this;
+  }
+
+  ~graph() { delete _weights; }
+
+  friend void swap(graph& left, graph& right) { left.swap(right); }
+
+  void add_edge(factory left, factory right, weight distance) {
+    this->distance(left, right) = distance;
+    this->distance(right, left) = distance;
+  }
+
+  weight distance(factory left, factory right) const {
+    return const_cast<graph*>(this)->distance(left, right);
+  }
+
+  struct node_range : private detail::graph_container {
+   private:
+    using base = detail::graph_container;
+    using base::_count;
+    using base::_weights;
+    node_range(weight* w, size_t count) : base{w, count} {}
+    friend class graph;
+  };
+
+  node_range nodes() const { return node_range{_weights, _count}; }
+
+  size_t node_count() const { return _count; }
+
+ private:
+  weight& distance(factory left, factory right) {
+    return _weights[left.id() * _count + right.id()];
+  }
+
+  void swap(graph& g) {
+    using std::swap;
+    swap(_count, g._count);
+    swap(_weights, g._weights);
+  }
+};
+
 using entity_container = unordered_map<entity_id, entity>;
 
 void upsert(entity_container& container, pair<entity_id, entity>&& to_add) {
@@ -104,26 +189,25 @@ void upsert(entity_container& container, pair<entity_id, entity>&& to_add) {
 }
 
 graph parse_map() {
-  int factoryCount;  // the number of factories
-  cin >> factoryCount;
+  size_t factory_count;  // the number of factories
+  cin >> factory_count;
   cin.ignore();
 
   int link_count;  // the number of links between factories
   cin >> link_count;
   cin.ignore();
-  graph map;
+  graph map(factory_count);
 
   for (int i = 0; i < link_count; i++) {
-    int factory1;
-    int factory2;
+    size_t factory1;
+    size_t factory2;
     int distance;
     cin >> factory1 >> factory2 >> distance;
     cin.ignore();
     factory f1{factory1};
     factory f2{factory2};
     weight dist{distance};
-    map.emplace(f1, factory_distance{f2, dist});
-    map.emplace(f2, factory_distance{f1, dist});
+    map.add_edge(f1, f2, dist);
   }
 
   return map;
@@ -141,9 +225,9 @@ factory_info parse_factory_info(istream& in) {
 
 troop_info parse_troop_info(istream& in) {
   int owner;
-  int origin;
+  size_t origin;
   strength cyborgs;
-  int destination;
+  size_t destination;
   weight distance;
   in >> owner >> origin >> destination >> cyborgs.value >> distance.value;
   cin.ignore();
