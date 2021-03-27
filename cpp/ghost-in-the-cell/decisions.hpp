@@ -35,10 +35,6 @@ class decision {
   };
 };
 
-decision decide() {
-  return wait;
-}
-
 }  // namespace gitc
 
 #endif  // GUARD_DPSG_GITC_DECISIONS_HPP

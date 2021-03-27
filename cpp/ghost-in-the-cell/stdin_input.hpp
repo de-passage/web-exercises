@@ -82,8 +82,6 @@ void parse_entity(std::istream& in,
   else if (type == "TROOP") {
     upsert(troops, std::make_pair(id, parse_troop_info(in)));
   }
-
-  throw std::runtime_error("Invalid entity type: " + std::move(type));
 }
 
 void parse_and_update_entities(troop_container& troops,

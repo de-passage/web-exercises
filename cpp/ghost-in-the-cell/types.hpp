@@ -6,7 +6,7 @@
 
 namespace gitc {
 
-enum class owner_type : int { Vme = 1, opponent = -1, neutral = 0 };
+enum class owner_type : int { me = 1, opponent = -1, neutral = 0 };
 enum class entity_type : int { troop, factory };
 
 struct strength {
@@ -65,10 +65,64 @@ struct entity_id {
   friend bool operator==(entity_id left, entity_id right) noexcept {
     return left.id == right.id;
   }
+  friend bool operator<(entity_id left, entity_id right) noexcept {
+    return left.id < right.id;
+  }
 };
+
+inline factory to_factory(entity_id id) {
+  return factory{static_cast<size_t>(id.id)};
+}
+inline entity_id to_id(factory id) {
+  return entity_id{static_cast<int>(id.id())};
+}
 
 using factory_container = std::unordered_map<entity_id, factory_info>;
 using troop_container = std::unordered_map<entity_id, troop_info>;
+template <class T>
+inline strength production(const std::pair<T, factory_info>& p) {
+  return p.second.production;
+}
+template <class T, class U>
+inline strength cyborgs(const std::pair<T, U>& p) {
+  return p.second.cyborgs;
+}
+template <class T, class U>
+inline entity_id id(const std::pair<T, U>& p) {
+  return p.first;
+}
+template <class T, class U>
+inline owner_type owner(const std::pair<T, U>& p) {
+  return p.second.owner;
+}
+inline owner_type owner(const factory_info& i) {
+  return i.owner;
+}
+inline strength cyborgs(const factory_info& i) {
+  return i.cyborgs;
+}
+
+namespace detail {
+template <class...>
+struct void_t_impl {
+  using type = void;
+};
+template <class... Ts>
+using void_t = typename void_t_impl<Ts...>::type;
+template <class T, class = void>
+struct has_value : std::false_type {};
+template <class T>
+struct has_value<T, void_t<decltype(std::declval<T>().value)>>
+    : std::true_type {};
+}  // namespace detail
+template <class T,
+          class U,
+          std::enable_if_t<
+              std::conjunction_v<detail::has_value<T>, detail::has_value<U>>,
+              int> = 0>
+inline double operator/(T t, U u) {
+  return static_cast<double>(t.value) / static_cast<double>(u.value);
+}
 }  // namespace gitc
 
 namespace std {

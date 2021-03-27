@@ -11,6 +11,6 @@ int main() {
   // game loop
   while (1) {
     parse_and_update_entities(troops, factories);
-    cout << decide() << endl;
+    cout << decide(map, factories, troops) << endl;
   }
 }
