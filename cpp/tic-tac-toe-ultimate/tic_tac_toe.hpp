@@ -20,6 +20,9 @@ player operator+(player left, player right) {
 player operator/(player left, int right) {
   return static_cast<player>(static_cast<int>(left) / right);
 }
+player operator~(player to_invert) {
+  return static_cast<player>(static_cast<int>(to_invert) * -1);
+}
 using action = std::pair<size_t, size_t>;
 using action_list = std::vector<action>;
 
@@ -123,8 +126,7 @@ class game {
       for (size_t i = 0; i < 3; ++i) {
         for (size_t j = 0; j < 3; ++j) {
           if (_board.at(i, j) == player::none) {
-            _current_player =
-                static_cast<player>(static_cast<int>(_current_player) * -1);
+            _current_player = ~_current_player;
             return ongoing{_current_player};
           }
         }
@@ -155,37 +157,32 @@ class game {
   player _current_player;
 };
 
-action best_move(const game& g, player current_player);
+action best_move(const game& g);
 
-int simulate_score(action act, game g, player p) {
+int simulate_score(action act, game g) {
   auto r = g.play_at(act);
   return r.dispatch(
       [](invalid_t) -> int { throw std::runtime_error("invalid move"); },
       [](draw_t) { return 0; },
-      [p](won winner) {
-        return winner.winner == p ? std::numeric_limits<int>::max()
-                                  : std::numeric_limits<int>::min();
-      },
-      [&g, p](ongoing) { return simulate_score(best_move(g, p), g, p); });
+      [](won) { return std::numeric_limits<int>::max(); },
+      [&g](ongoing) { return -simulate_score(best_move(g), g) / 2; });
 }
 
-action best_move(const game& g, player current_player) {
+action best_move(const game& g) {
   action_list list = g.valid_moves();
-  if (find(list.begin(), list.end(), action{1, 1}) != list.end()) {
+  if (list.size() == 9) {
     return action{1, 1};
   }
   action& least_bad = list.front();
   int least_bad_score = std::numeric_limits<int>::min();
   for (auto& move : list) {
-    auto current_score = simulate_score(move, g, current_player);
-    if (current_score == std::numeric_limits<int>::max()) {
-      return move;
-    }
-    else if (current_score > least_bad_score) {
+    auto current_score = simulate_score(move, g);
+    if (current_score > least_bad_score) {
       least_bad_score = current_score;
       least_bad = move;
     }
   }
+
   return least_bad;
 }
 
