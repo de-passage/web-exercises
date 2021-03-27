@@ -36,54 +36,51 @@ double strategic_value(entity_id fact_id,
   double coef = owner(info) == owner_type::me ? 0.1
                 : owner(info) == owner_type::neutral
                     ? 1
-                    : (2 / cyborgs(info).value);
+                    : (friendly_proximity - cyborgs(info).value);
   double base = production(info).value * coef;
-  return base - enemy_proximity + friendly_proximity +
-         point_of_interest_proximity;
+  return base *
+         (enemy_proximity + friendly_proximity + point_of_interest_proximity);
 }
 
 const double MAX_SENT = 0.9;
-strength available_soldiers(const factory_info& info,
+strength available_soldiers(const entity_id& origin,
+                            const factory_info& info,
                             const troop_container& troops) {
-  int coming_in = std::accumulate(
-      troops.begin(), troops.end(), 0, [](int acc, const auto& pair) -> int {
-        int str = cyborgs(pair).value;
-        int own = static_cast<int>(owner(pair));
-        return acc + (own * str);
-      });
-  return std::min(info.cyborgs.value + coming_in, info.cyborgs.value) *
-         MAX_SENT;
+  int coming_in =
+      std::accumulate(troops.begin(),
+                      troops.end(),
+                      0,
+                      [origin](int acc, const auto& pair) -> int {
+                        if (pair.second.distance.target == to_factory(origin)) {
+                          int str = cyborgs(pair).value;
+                          int own = static_cast<int>(owner(pair));
+                          return acc + (own * str);
+                        }
+                        return acc;
+                      });
+  return (info.cyborgs.value + coming_in) * 0.9;
 }
 
 bool has_enough_soldiers(const weight& distance,
                          const strength& av_soldiers,
-                         const factory_info& destination,
-                         const troop_container& troops) {
+                         const factory_info& destination) {
   strength op_soldiers = destination.cyborgs;
 
-  int transit = 0;
-  for (auto& troop : troops) {
-    transit += (owner(troop) == owner_type::me ? -1 : 1) * cyborgs(troop).value;
-  }
-
   return av_soldiers.value >
-         op_soldiers.value + transit +
-             (destination.production.value * distance.value);
+             op_soldiers.value +
+                 (abs(static_cast<int>(owner(destination))) *
+                  destination.production.value * distance.value) &&
+         av_soldiers.value > 0;
 }
 
 decision decide(const graph& map,
                 const factory_container& factories,
                 const troop_container& troops) {
   std::vector<std::pair<entity_id, strength>> controlled;
-  // std::cerr << "decision process started; factories:" << factories.size()
-  // << " troops: " << troops.size() << std::endl;
   for (auto& fact : factories) {
     if (owner(fact) == owner_type::me) {
-      controlled.emplace_back(id(fact),
-                              available_soldiers(fact.second, troops));
-      // std::cerr << "controlled: " << fact.first.id << " available: "
-      //           << available_soldiers(fact.second, troops).value <<
-      //           std::endl;
+      controlled.emplace_back(
+          id(fact), available_soldiers(fact.first, fact.second, troops));
     }
   }
 
@@ -94,20 +91,20 @@ decision decide(const graph& map,
   auto& best = queue.top();
 
   int closest_factory = -1;
+  strength soldiers;
+
   for (auto& fact : controlled) {
+    auto distance = map.distance(to_factory(best.second), to_factory(id(fact)));
     if (has_enough_soldiers(
-            map.distance(to_factory(best.second), to_factory(id(fact))),
-            fact.second,
-            factories.find(best.second)->second,
-            troops)) {
+            distance, fact.second, factories.find(best.second)->second) &&
+        soldiers.value < (fact.second / distance)) {
       closest_factory = id(fact).id;
+      soldiers = fact.second;
     }
   }
 
-  // std::cerr << "best target: " << best.second.id << std::endl;
-
   if (closest_factory != -1 && closest_factory != best.second.id) {
-    return move{factories.find(entity_id{closest_factory})->second.cyborgs,
+    return move{soldiers,
                 factory{static_cast<size_t>(closest_factory)},
                 to_factory(best.second)};
   }
