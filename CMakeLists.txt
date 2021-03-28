@@ -62,4 +62,4 @@ add_test(NAME "${TARGET_NAME}-test" COMMAND ${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
 endfunction()
 
-add_subdirectory(cpp)
+add_subdirectory(codingame)
