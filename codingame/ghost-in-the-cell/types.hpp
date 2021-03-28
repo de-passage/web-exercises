@@ -13,6 +13,10 @@ struct strength {
   constexpr strength() noexcept = default;
   constexpr strength(int value) noexcept : value{value} {}
   int value{};
+
+  friend bool operator<(strength left, strength right) noexcept {
+    return left.value < right.value;
+  }
 };
 
 struct factory_info {

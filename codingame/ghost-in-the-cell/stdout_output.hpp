@@ -13,9 +13,26 @@ std::ostream& operator<<(std::ostream& out, const decision& d) {
                       return out << "MOVE " << m.origin.id() << " "
                                  << m.destination.id() << " "
                                  << m.cyborgs.value;
+                    },
+                    [&out](const increment_production& p) -> decltype(auto) {
+                      return out << "INC " << p.target.id() << " ";
                     });
 }
 
+std::ostream& operator<<(std::ostream& out, const decision_list& decisions) {
+  if (decisions.size() > 0) {
+    for (size_t i = 0; i < decisions.size(); ++i) {
+      auto& d = decisions[i];
+      out << d;
+      if (i != decisions.size() - 1)
+        out << ';';
+    }
+  }
+  else {
+    out << wait;
+  }
+  return out;
+}
 }  // namespace gitc
 
 #endif  // GUARD_DPSG_GITC_STDOUT_OUTPUT_HPP
