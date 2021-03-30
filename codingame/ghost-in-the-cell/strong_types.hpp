@@ -91,8 +91,16 @@ struct get_value_t {
 template <class To>
 struct get_value_then_cast_t {
   template <class T>
-  inline constexpr T operator()(T&& t) noexcept {
+  inline constexpr To operator()(T&& t) noexcept {
     return static_cast<To>(get_value_t{}(std::forward<T>(t)));
+  }
+};
+
+template <class To, class Cl>
+struct cast_to_then_construct_t {
+  template <class T>
+  inline constexpr Cl operator()(T&& t) noexcept {
+    return Cl{static_cast<To>(std::forward<T>(t))};
   }
 };
 

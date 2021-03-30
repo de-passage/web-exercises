@@ -69,8 +69,7 @@ const double MAX_SENT = 0.9;
 strength available_soldiers(const factory_with_id& origin,
                             const troop_container& troops) {
   auto coming_in = incoming_soldiers(id(origin), troops);
-  return strength{static_cast<int>(
-      static_cast<double>((cyborgs(origin) + coming_in).value) * MAX_SENT)};
+  return (cyborgs(origin) + coming_in) * MAX_SENT;
 }
 
 strength available_defence(const factory_with_id& fact,
@@ -131,9 +130,7 @@ decision_list decide(const graph& map,
         strength req_soldiers = std::get<strength_idx>(target);
         double strat_value =
             strategic_values.find(std::get<factory_idx>(target))->second;
-        strength opti_soldiers{
-            static_cast<int>(static_cast<double>(req_soldiers.value) *
-                             (1 + (strat_value / 100)))};
+        strength opti_soldiers{req_soldiers * (1 + (strat_value / 100))};
         opti_soldiers = std::max(opti_soldiers, soldiers);
 
         //  std::cerr << " soldiers: " << soldiers.value

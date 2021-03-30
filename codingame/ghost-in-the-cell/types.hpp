@@ -54,7 +54,19 @@ struct tagged_int : int_value<tagged_int<T, Ts...>, Ts...> {
 template <class T>
 using strong_id = value_impl<T, id_t, st::comparable>;
 
-using strength = tagged_int<struct strength_tag>;
+namespace detail {
+template <class T>
+using strength_impl = int_value<
+    T,
+    st::arithmetically_compatible_with<double,
+                                       st::cast_to_then_construct_t<int, T>,
+                                       st::get_value_then_cast_t<double>>>;
+}  // namespace detail
+struct strength : detail::strength_impl<strength> {
+  template <class... Ts>
+  constexpr explicit strength(Ts... ts)
+      : detail::strength_impl<strength>{ts...} {}
+};
 using production_capacity = tagged_int<struct production_tag>;
 using duration = tagged_int<struct duration_tag,
                             st::commutative_under<st::multiplies_t,
