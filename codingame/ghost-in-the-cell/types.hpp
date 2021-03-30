@@ -6,53 +6,17 @@
 #include <unordered_map>
 #include <utility>
 
+#include "./strong_types.hpp"
+
 namespace gitc {
+
+namespace st = dpsg::strong_types;
 
 enum class owner_type : int { me = 1, opponent = -1, neutral = 0 };
 enum class entity_type : int { troop, factory };
 
-template <class T>
-struct arithmetic_impl {
-  using real_type = T;
-  friend real_type operator+(real_type left, real_type right) noexcept {
-    return real_type{left.value + right.value};
-  }
-  friend real_type operator*(real_type left, real_type right) noexcept {
-    return real_type{left.value * right.value};
-  }
-  friend real_type operator/(real_type left, real_type right) noexcept {
-    return real_type{left.value / right.value};
-  }
-  friend real_type operator-(real_type left, real_type right) noexcept {
-    return real_type{left.value - right.value};
-  }
-  friend real_type operator%(real_type left, real_type right) noexcept {
-    return real_type{left.value % right.value};
-  }
-  friend real_type& operator+=(real_type& left, real_type right) noexcept {
-    left.value += right.value;
-    return left;
-  }
-  friend real_type& operator-=(real_type& left, real_type right) noexcept {
-    left.value -= right.value;
-    return left;
-  }
-  friend real_type& operator/=(real_type& left, real_type right) noexcept {
-    left.value /= right.value;
-    return left;
-  }
-  friend real_type& operator*=(real_type& left, real_type right) noexcept {
-    left.value *= right.value;
-    return left;
-  }
-  friend real_type& operator%=(real_type& left, real_type right) noexcept {
-    left.value %= right.value;
-    return left;
-  }
-};
-
 template <class T, class ValueType = int>
-struct value_impl {
+struct value_impl : st::comparable<T>, st::arithmetic<T> {
   using real_type = T;
   using value_type = ValueType;
   value_type value;
@@ -65,35 +29,16 @@ struct value_impl {
   constexpr value_impl() noexcept = default;
   constexpr value_impl(real_type lower) noexcept
       : value{std::move(lower).value} {}
-
-  friend bool operator<(real_type left, real_type right) noexcept {
-    return left.value < right.value;
-  }
-
-  friend bool operator<=(real_type left, real_type right) noexcept {
-    return left.value <= right.value;
-  }
-
-  friend bool operator>(real_type left, real_type right) noexcept {
-    return left.value > right.value;
-  }
-
-  friend bool operator>=(real_type left, real_type right) noexcept {
-    return left.value >= right.value;
-  }
-
-  friend bool operator==(real_type left, real_type right) noexcept {
-    return left.value == right.value;
-  }
-
-  friend bool operator!=(real_type left, real_type right) noexcept {
-    return left.value != right.value;
-  }
 };
 
-struct strength : value_impl<strength, int>, arithmetic_impl<strength> {
+struct strength : value_impl<strength, int> {
   constexpr strength() noexcept = default;
   constexpr strength(int value) noexcept : value_impl{value} {}
+};
+
+struct duration : value_impl<duration, int> {
+  template <class... Ts>
+  constexpr duration(Ts... ts) : value_impl<duration, int>{ts...} {}
 };
 
 struct factory_info {
@@ -184,24 +129,11 @@ inline troop_info info(const troop_with_id& p) {
   return p.second;
 }
 
-namespace detail {
-template <class...>
-struct void_t_impl {
-  using type = void;
-};
-template <class... Ts>
-using void_t = typename void_t_impl<Ts...>::type;
-template <class T, class = void>
-struct has_value : std::false_type {};
-template <class T>
-struct has_value<T, void_t<decltype(std::declval<T>().value)>>
-    : std::true_type {};
-}  // namespace detail
-template <class T,
-          class U,
-          std::enable_if_t<
-              std::conjunction_v<detail::has_value<T>, detail::has_value<U>>,
-              int> = 0>
+template <
+    class T,
+    class U,
+    std::enable_if_t<std::conjunction_v<st::has_value<T>, st::has_value<U>>,
+                     int> = 0>
 inline double operator/(T t, U u) {
   return static_cast<double>(t.value) / static_cast<double>(u.value);
 }
