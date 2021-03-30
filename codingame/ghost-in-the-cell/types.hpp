@@ -35,29 +35,36 @@ struct value_impl : st::derive_t<T, Ts...> {
 };
 
 template <class T, class... Ts>
-using int_value = value_impl<T, int, st::comparable, st::arithmetic, Ts...>;
+using int_value =
+    value_impl<T,
+               int,
+               st::comparable,
+               st::arithmetic,
+               st::comparable_with<int>,
+               st::arithmetically_compatible_with<int, st::construct_t<T>>,
+               Ts...>;
+
+template <class T, class... Ts>
+struct tagged_int : int_value<tagged_int<T, Ts...>, Ts...> {
+  using base = int_value<tagged_int<T, Ts...>, Ts...>;
+  template <class... Us>
+  constexpr explicit tagged_int(Us... ts) : base{ts...} {}
+};
 
 template <class T>
 using strong_id = value_impl<T, id_t, st::comparable>;
 
-struct strength
-    : int_value<
-          strength,
-          st::comparable_with<id_t>,
-          st::arithmetically_compatible_with<int, st::construct_t<strength>>> {
-  constexpr explicit strength() noexcept = default;
-  constexpr explicit strength(int value) noexcept : value_impl{value} {}
-};
-
-struct duration : int_value<duration> {
-  template <class... Ts>
-  constexpr explicit duration(Ts... ts) : int_value<duration>{ts...} {}
-};
+using strength = tagged_int<struct strength_tag>;
+using production_capacity = tagged_int<struct production_tag>;
+using duration = tagged_int<struct duration_tag,
+                            st::commutative_under<st::multiplies_t,
+                                                  production_capacity,
+                                                  st::construct_t<strength>>>;
 
 struct factory_info {
   owner_type owner;
   strength cyborgs;
-  strength production;
+  production_capacity production;
 };
 
 struct factory_id : strong_id<factory_id> {
@@ -105,8 +112,11 @@ using factory_with_id = typename factory_container::value_type;
 using troop_container = std::unordered_map<troop_id, troop_info>;
 using troop_with_id = typename troop_container::value_type;
 
-inline strength production(const factory_with_id& p) {
+inline production_capacity production(const factory_with_id& p) {
   return p.second.production;
+}
+inline production_capacity production(const factory_info& p) {
+  return p.production;
 }
 template <class T, class U>
 inline strength cyborgs(const std::pair<T, U>& p) {

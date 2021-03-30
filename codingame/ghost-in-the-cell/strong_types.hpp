@@ -177,7 +177,7 @@ struct unary_operation_implementation;
                   std::conjunction_v<std::is_same<std::decay_t<T>, Arg>>, \
                   int> = 0>                                               \
     friend constexpr decltype(auto) operator sym(T&& arg) {               \
-      return op##_t{}(Transform{}(std::forward<T>(arg)));                 \
+      return Result{}(op##_t{}(Transform{}(std::forward<T>(arg))));       \
     }                                                                     \
   };
 
@@ -290,10 +290,10 @@ struct make_reflexive_operator {
   template <class Op>
   using type = reflexive_operator_implementation<Op, Arg, R>;
 };
-template <class Arg>
+template <class Arg, class R, class T>
 struct make_unary_operator {
   template <class Op>
-  using type = unary_operation_implementation<Op, Arg>;
+  using type = unary_operation_implementation<Op, Arg, R, T>;
 };
 }  // namespace detail
 
@@ -318,8 +318,9 @@ struct arithmetic {
   struct type
       : for_each<binary_arithmetic_operators,
                  detail::make_reflexive_operator<Arg, construct_t<Arg>>>,
-        for_each<unary_arithmetic_operators, detail::make_unary_operator<Arg>> {
-  };
+        for_each<
+            unary_arithmetic_operators,
+            detail::make_unary_operator<Arg, construct_t<Arg>, get_value_t>> {};
 };
 
 namespace detail {
@@ -342,6 +343,16 @@ struct arithmetically_compatible_with {
                                         R>,
                      T1,
                      T2>> {};
+};
+
+template <class Op,
+          class Arg2,
+          class R = detail::deduce,
+          class T1 = get_value_t,
+          class T2 = get_value_t>
+struct commutative_under {
+  template <class Arg1>
+  using type = commutative_operator_implementation<Op, Arg1, Arg2, R, T1, T2>;
 };
 
 template <class T, class... Ts>

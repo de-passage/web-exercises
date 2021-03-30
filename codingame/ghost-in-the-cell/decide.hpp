@@ -57,7 +57,7 @@ strength incoming_soldiers(const factory_id& origin,
                          strength{0},
                          [origin](strength acc, const auto& pair) -> strength {
                            if (pair.second.distance.target == origin) {
-                             int str = cyborgs(pair).value;
+                             strength str = cyborgs(pair);
                              int own = static_cast<int>(owner(pair));
                              return acc + (own * str);
                            }
@@ -66,29 +66,26 @@ strength incoming_soldiers(const factory_id& origin,
 }
 
 const double MAX_SENT = 0.9;
-strength available_soldiers(const factory_id& origin,
-                            const factory_info& info,
+strength available_soldiers(const factory_with_id& origin,
                             const troop_container& troops) {
-  auto coming_in = incoming_soldiers(origin, troops);
+  auto coming_in = incoming_soldiers(id(origin), troops);
   return strength{static_cast<int>(
-      static_cast<double>((info.cyborgs + coming_in).value) * MAX_SENT)};
+      static_cast<double>((cyborgs(origin) + coming_in).value) * MAX_SENT)};
 }
 
-strength available_defence(const factory_id& fact,
-                           const factory_info& info,
+strength available_defence(const factory_with_id& fact,
                            const troop_container& troops) {
-  strength op_soldiers = info.cyborgs + incoming_soldiers(fact, troops);
+  strength op_soldiers = cyborgs(fact) + incoming_soldiers(id(fact), troops);
   return op_soldiers;
 }
 
-strength strength_required(const factory_id& fact,
-                           const factory_info& info,
+strength strength_required(const factory_with_id& info,
                            duration distance,
                            const troop_container& troops) {
-  strength op_soldiers = info.cyborgs - incoming_soldiers(fact, troops);
-  int prod = abs(static_cast<int>(owner(info)) * info.production.value *
-                 distance.value);
-  return strength{prod + op_soldiers.value + 1};
+  strength op_soldiers = cyborgs(info) - incoming_soldiers(id(info), troops);
+  strength prod = static_cast<int>(owner(info)) * production(info) * distance;
+  prod = prod >= 0 ? prod : -prod;
+  return prod + op_soldiers + 1;
 }
 
 decision_list decide(const graph& map,
@@ -97,13 +94,13 @@ decision_list decide(const graph& map,
   decision_list decisions;
   std::unordered_map<factory_id, double> strategic_values;
   for (auto& fact : factories) {
-    strategic_values.emplace(fact.first,
-                             strategic_value(fact.first, map, factories));
+    strategic_values.emplace(id(fact),
+                             strategic_value(id(fact), map, factories));
   }
 
   for (auto& fact : factories) {
     if (owner(fact) == owner_type::me) {
-      auto soldiers = available_soldiers(fact.first, fact.second, troops);
+      auto soldiers = available_soldiers(fact, troops);
 
       //  std::cerr << "considering factory: " << id(fact).id << std::endl;
       using factory_strategic_value = std::tuple<double, factory_id, strength>;
@@ -120,12 +117,9 @@ decision_list decide(const graph& map,
 
         strength str =
             owner(target) == owner_type::me
-                ? std::max(strength{0},
-                           available_defence(id(fact), fact.second, troops))
-                : strength_required(id(target),
-                                    target.second,
-                                    map.distance(id(target), id(fact)),
-                                    troops);
+                ? std::max(strength{0}, available_defence(fact, troops))
+                : strength_required(
+                      target, map.distance(id(target), id(fact)), troops);
 
         queue.emplace(r_strat_value, id(target), str);
       }
@@ -137,10 +131,10 @@ decision_list decide(const graph& map,
         strength req_soldiers = std::get<strength_idx>(target);
         double strat_value =
             strategic_values.find(std::get<factory_idx>(target))->second;
-        strength opti_soldiers = std::max(
-            strength{static_cast<int>(static_cast<double>(req_soldiers.value) *
-                                      (1 + (strat_value / 100)))},
-            soldiers);
+        strength opti_soldiers{
+            static_cast<int>(static_cast<double>(req_soldiers.value) *
+                             (1 + (strat_value / 100)))};
+        opti_soldiers = std::max(opti_soldiers, soldiers);
 
         //  std::cerr << " soldiers: " << soldiers.value
         //            << " target_id: " << std::get<1>(target).id

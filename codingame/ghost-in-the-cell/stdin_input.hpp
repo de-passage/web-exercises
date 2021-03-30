@@ -49,11 +49,11 @@ graph parse_map() {
 factory_info parse_factory_info(std::istream& in) {
   int owner;
   strength cyborgs;
-  strength production;
+  production_capacity prod;
   int discard;
-  in >> owner >> cyborgs.value >> production.value >> discard >> discard;
+  in >> owner >> cyborgs.value >> prod.value >> discard >> discard;
   std::cin.ignore();
-  return factory_info{static_cast<owner_type>(owner), cyborgs, production};
+  return factory_info{static_cast<owner_type>(owner), cyborgs, prod};
 }
 
 troop_info parse_troop_info(std::istream& in) {
