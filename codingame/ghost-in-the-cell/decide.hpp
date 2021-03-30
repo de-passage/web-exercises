@@ -71,7 +71,7 @@ strength available_soldiers(const factory_id& origin,
                             const troop_container& troops) {
   auto coming_in = incoming_soldiers(origin, troops);
   return strength{static_cast<int>(
-      static_cast<double>(info.cyborgs.value + coming_in.value) * MAX_SENT)};
+      static_cast<double>((info.cyborgs + coming_in).value) * MAX_SENT)};
 }
 
 strength available_defence(const factory_id& fact,
@@ -79,18 +79,16 @@ strength available_defence(const factory_id& fact,
                            const troop_container& troops) {
   strength op_soldiers =
       info.cyborgs.value + incoming_soldiers(fact, troops).value;
-  auto prod = info.production;
-  return op_soldiers.value + prod.value;
+  return op_soldiers;
 }
 
 strength strength_required(const factory_id& fact,
                            const factory_info& info,
                            weight distance,
                            const troop_container& troops) {
-  strength op_soldiers =
-      info.cyborgs.value + -(incoming_soldiers(fact, troops).value);
-  auto prod = abs(static_cast<int>(owner(info)) * info.production.value *
-                  distance.value);
+  strength op_soldiers = info.cyborgs - incoming_soldiers(fact, troops);
+  int prod = abs(static_cast<int>(owner(info)) * info.production.value *
+                 distance.value);
   return prod + op_soldiers.value + 1;
 }
 
@@ -109,7 +107,11 @@ decision_list decide(const graph& map,
       auto soldiers = available_soldiers(fact.first, fact.second, troops);
 
       //  std::cerr << "considering factory: " << id(fact).id << std::endl;
-      std::priority_queue<std::tuple<double, factory_id, strength>> queue;
+      using factory_strategic_value = std::tuple<double, factory_id, strength>;
+      constexpr int factory_idx = 1;
+      constexpr int strength_idx = 2;
+      std::priority_queue<factory_strategic_value> queue;
+
       for (auto& target : factories) {
         if (id(target) == id(fact))
           continue;
@@ -119,13 +121,12 @@ decision_list decide(const graph& map,
 
         strength str =
             owner(target) == owner_type::me
-                ? std::max(
-                      0, available_defence(id(fact), fact.second, troops).value)
+                ? std::max(strength{0},
+                           available_defence(id(fact), fact.second, troops))
                 : strength_required(id(target),
                                     target.second,
                                     map.distance(id(target), id(fact)),
-                                    troops)
-                      .value;
+                                    troops);
 
         queue.emplace(r_strat_value, id(target), str);
       }
@@ -134,12 +135,13 @@ decision_list decide(const graph& map,
         auto target = std::move(queue.top());
         queue.pop();
 
-        strength req_soldiers = std::get<2>(target).value;
-        double strat_value = strategic_values.find(std::get<1>(target))->second;
-        strength opti_soldiers =
-            std::max(static_cast<int>(static_cast<double>(req_soldiers.value) *
-                                      (1 + (strat_value / 100))),
-                     soldiers.value);
+        strength req_soldiers = std::get<strength_idx>(target);
+        double strat_value =
+            strategic_values.find(std::get<factory_idx>(target))->second;
+        strength opti_soldiers = std::max(
+            strength{static_cast<int>(static_cast<double>(req_soldiers.value) *
+                                      (1 + (strat_value / 100)))},
+            soldiers);
 
         //  std::cerr << " soldiers: " << soldiers.value
         //            << " target_id: " << std::get<1>(target).id
@@ -147,11 +149,11 @@ decision_list decide(const graph& map,
         //            << " opti soldiers: " << opti_soldiers.value
         //            << " strat: " << std::get<0>(target)
         //            << std::endl;
-        if (soldiers.value >= req_soldiers.value && req_soldiers.value > 0) {
-          int to_send = std::min(req_soldiers.value, opti_soldiers.value);
-          soldiers.value -= to_send;
+        if (soldiers >= req_soldiers && req_soldiers.value > 0) {
+          auto to_send = std::min(req_soldiers, opti_soldiers);
+          soldiers -= to_send;
           decisions.emplace_back(
-              move{strength{to_send}, id(fact), std::get<1>(target)});
+              move{to_send, id(fact), std::get<factory_idx>(target)});
         }
       }
     }

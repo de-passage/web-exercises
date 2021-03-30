@@ -11,18 +11,89 @@ namespace gitc {
 enum class owner_type : int { me = 1, opponent = -1, neutral = 0 };
 enum class entity_type : int { troop, factory };
 
-struct strength {
-  constexpr strength() noexcept = default;
-  constexpr strength(int value) noexcept : value{value} {}
-  int value{};
+template <class T>
+struct arithmetic_impl {
+  using real_type = T;
+  friend real_type operator+(real_type left, real_type right) noexcept {
+    return real_type{left.value + right.value};
+  }
+  friend real_type operator*(real_type left, real_type right) noexcept {
+    return real_type{left.value * right.value};
+  }
+  friend real_type operator/(real_type left, real_type right) noexcept {
+    return real_type{left.value / right.value};
+  }
+  friend real_type operator-(real_type left, real_type right) noexcept {
+    return real_type{left.value - right.value};
+  }
+  friend real_type operator%(real_type left, real_type right) noexcept {
+    return real_type{left.value % right.value};
+  }
+  friend real_type& operator+=(real_type& left, real_type right) noexcept {
+    left.value += right.value;
+    return left;
+  }
+  friend real_type& operator-=(real_type& left, real_type right) noexcept {
+    left.value -= right.value;
+    return left;
+  }
+  friend real_type& operator/=(real_type& left, real_type right) noexcept {
+    left.value /= right.value;
+    return left;
+  }
+  friend real_type& operator*=(real_type& left, real_type right) noexcept {
+    left.value *= right.value;
+    return left;
+  }
+  friend real_type& operator%=(real_type& left, real_type right) noexcept {
+    left.value %= right.value;
+    return left;
+  }
+};
 
-  friend bool operator<(strength left, strength right) noexcept {
+template <class T, class ValueType = int>
+struct value_impl {
+  using real_type = T;
+  using value_type = ValueType;
+  value_type value;
+
+ protected:
+  constexpr explicit value_impl(value_type type) noexcept
+      : value{std::move(type)} {}
+
+ public:
+  constexpr value_impl() noexcept = default;
+  constexpr value_impl(real_type lower) noexcept
+      : value{std::move(lower).value} {}
+
+  friend bool operator<(real_type left, real_type right) noexcept {
     return left.value < right.value;
   }
 
-  friend bool operator<=(strength left, strength right) noexcept {
+  friend bool operator<=(real_type left, real_type right) noexcept {
     return left.value <= right.value;
   }
+
+  friend bool operator>(real_type left, real_type right) noexcept {
+    return left.value > right.value;
+  }
+
+  friend bool operator>=(real_type left, real_type right) noexcept {
+    return left.value >= right.value;
+  }
+
+  friend bool operator==(real_type left, real_type right) noexcept {
+    return left.value == right.value;
+  }
+
+  friend bool operator!=(real_type left, real_type right) noexcept {
+    return left.value != right.value;
+  }
+};
+
+struct strength : value_impl<strength, int>, arithmetic_impl<strength> {
+  constexpr strength() noexcept = default;
+  constexpr strength(int value) noexcept : value_impl{value} {}
 };
 
 struct factory_info {
@@ -34,32 +105,13 @@ struct factory_info {
 using id_t = int;
 constexpr auto invalid_id = std::numeric_limits<id_t>::max();
 
-struct factory_id {
-  constexpr explicit factory_id(id_t id) : value{id} {}
-
-  friend bool operator==(factory_id left, factory_id right) noexcept {
-    return left.value == right.value;
-  }
-
-  friend bool operator<(factory_id left, factory_id right) noexcept {
-    return left.value < right.value;
-  }
-
-  id_t value;
+struct factory_id : value_impl<factory_id, id_t> {
+  constexpr explicit factory_id(id_t id) : value_impl{id} {}
 };
 
-struct weight {
+struct weight : value_impl<weight, id_t> {
   constexpr weight() noexcept = default;
-  constexpr weight(int d) : value{d} {}
-  int value{};
-
-  friend bool operator==(weight left, weight right) {
-    return left.value == right.value;
-  }
-
-  friend bool operator!=(weight left, weight right) {
-    return left.value != right.value;
-  }
+  constexpr weight(int d) : value_impl{d} {}
 };
 
 struct factory_distance {
@@ -75,16 +127,9 @@ struct troop_info {
   factory_distance distance;
 };
 
-struct troop_id {
-  id_t value;
-  friend bool operator==(troop_id left, troop_id right) noexcept {
-    return left.value == right.value;
-  }
-  friend bool operator<(troop_id left, troop_id right) noexcept {
-    return left.value < right.value;
-  }
+struct troop_id : value_impl<troop_id, id_t> {
+  constexpr troop_id(id_t id) noexcept : value_impl{id} {}
 };
-
 }  // namespace gitc
 
 namespace std {
@@ -131,6 +176,12 @@ inline owner_type owner(const factory_info& i) {
 }
 inline strength cyborgs(const factory_info& i) {
   return i.cyborgs;
+}
+inline factory_info info(const factory_with_id& p) {
+  return p.second;
+}
+inline troop_info info(const troop_with_id& p) {
+  return p.second;
 }
 
 namespace detail {
