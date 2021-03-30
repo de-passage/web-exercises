@@ -83,18 +83,12 @@ struct factory_id : strong_id<factory_id> {
   constexpr explicit factory_id(id_t id) : value_impl{id} {}
 };
 
-struct factory_distance {
-  constexpr explicit factory_distance(factory_id f, duration d)
-      : target{f}, distance{d} {}
-  factory_id target;
-  duration distance;
-};
-
 struct troop_info {
   owner_type owner;
   factory_id origin;
   strength cyborgs;
-  factory_distance distance;
+  duration distance;
+  factory_id target;
 };
 
 struct troop_id : strong_id<troop_id> {
@@ -134,6 +128,9 @@ template <class T, class U>
 inline strength cyborgs(const std::pair<T, U>& p) {
   return p.second.cyborgs;
 }
+inline strength cyborgs(const factory_info& i) {
+  return i.cyborgs;
+}
 inline troop_id id(const troop_with_id& p) {
   return p.first;
 }
@@ -147,14 +144,32 @@ inline owner_type owner(const std::pair<T, U>& p) {
 inline owner_type owner(const factory_info& i) {
   return i.owner;
 }
-inline strength cyborgs(const factory_info& i) {
-  return i.cyborgs;
+inline owner_type owner(const troop_info& i) {
+  return i.owner;
 }
 inline factory_info info(const factory_with_id& p) {
   return p.second;
 }
 inline troop_info info(const troop_with_id& p) {
   return p.second;
+}
+inline duration time_to_arrival(const troop_with_id& p) {
+  return p.second.distance;
+}
+inline duration time_to_arrival(const troop_info& p) {
+  return p.distance;
+}
+inline factory_id target(const troop_with_id& p) {
+  return p.second.target;
+}
+inline factory_id target(const troop_info& p) {
+  return p.target;
+}
+inline factory_id origin(const troop_with_id& p) {
+  return p.second.origin;
+}
+inline factory_id origin(const troop_info& p) {
+  return p.origin;
 }
 
 template <

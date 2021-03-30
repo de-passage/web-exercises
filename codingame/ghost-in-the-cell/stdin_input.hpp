@@ -67,7 +67,8 @@ troop_info parse_troop_info(std::istream& in) {
   return troop_info{static_cast<owner_type>(owner),
                     factory_id{origin},
                     cyborgs,
-                    factory_distance{factory_id{destination}, distance}};
+                    distance,
+                    factory_id{destination}};
 }
 
 void parse_entity(std::istream& in,

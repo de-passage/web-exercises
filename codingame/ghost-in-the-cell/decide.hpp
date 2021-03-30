@@ -55,11 +55,10 @@ strength incoming_soldiers(const factory_id& origin,
   return std::accumulate(troops.begin(),
                          troops.end(),
                          strength{0},
-                         [origin](strength acc, const auto& pair) -> strength {
-                           if (pair.second.distance.target == origin) {
-                             strength str = cyborgs(pair);
-                             int own = static_cast<int>(owner(pair));
-                             return acc + (own * str);
+                         [origin](strength acc, const auto& troop) -> strength {
+                           if (target(troop) == origin) {
+                             int own = static_cast<int>(owner(troop));
+                             return acc + (own * cyborgs(troop));
                            }
                            return acc;
                          });
