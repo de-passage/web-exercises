@@ -1,9 +1,6 @@
 #ifndef GUARD_DPSG_GITC_GRAPH_HPP
 #define GUARD_DPSG_GITC_GRAPH_HPP
 
-#include <algorithm>
-#include <utility>
-
 #include "./types.hpp"
 
 namespace gitc {
@@ -25,8 +22,8 @@ class graph : private detail::graph_container {
       : base{new weight[node_count * node_count], node_count} {
     for (size_t i = 0; i < _count; ++i) {
       for (size_t j = 0; j < _count; ++j) {
-        add_edge(factory{i},
-                 factory{j},
+        add_edge(factory_id{static_cast<id_t>(i)},
+                 factory_id{static_cast<id_t>(j)},
                  weight{i == j ? 0 : std::numeric_limits<int>::max()});
       }
     }
@@ -37,7 +34,7 @@ class graph : private detail::graph_container {
              to_copy.node_count()} {
     for (size_t i = 0; i < _count; ++i) {
       for (size_t j = 0; j < _count; ++j) {
-        factory left{i}, right{j};
+        factory_id left{static_cast<id_t>(i)}, right{static_cast<id_t>(j)};
         add_edge(left, right, to_copy.distance(left, right));
       }
     }
@@ -61,12 +58,12 @@ class graph : private detail::graph_container {
 
   friend void swap(graph& left, graph& right) { left.swap(right); }
 
-  void add_edge(factory left, factory right, weight distance) {
+  void add_edge(factory_id left, factory_id right, weight distance) {
     _distance(left, right) = distance;
     _distance(right, left) = distance;
   }
 
-  weight distance(factory left, factory right) const {
+  weight distance(factory_id left, factory_id right) const {
     return const_cast<graph*>(this)->_distance(left, right);
   }
 
@@ -84,8 +81,8 @@ class graph : private detail::graph_container {
   size_t node_count() const { return _count; }
 
  private:
-  weight& _distance(factory left, factory right) {
-    return _weights[left.id() * _count + right.id()];
+  weight& _distance(factory_id left, factory_id right) {
+    return _weights[left.value * static_cast<id_t>(_count) + right.value];
   }
 
   void swap(graph& g) {

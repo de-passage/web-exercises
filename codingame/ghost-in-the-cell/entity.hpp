@@ -28,7 +28,7 @@ struct entity {
   };
 };
 
-using entity_container = std::unordered_map<entity_id, entity>;
+using entity_container = std::unordered_map<id_t, entity>;
 }  // namespace gitc
 
 #endif  // GUARD_DPSG_GITC_ENTITY_HPP

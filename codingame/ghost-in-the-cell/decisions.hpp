@@ -10,12 +10,12 @@ struct wait_t {
 } constexpr wait;
 struct move {
   strength cyborgs;
-  factory origin;
-  factory destination;
+  factory_id origin;
+  factory_id destination;
 };
 
 struct increment_production {
-  factory target;
+  factory_id target;
 };
 
 struct bomb {};

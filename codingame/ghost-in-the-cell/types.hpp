@@ -1,6 +1,8 @@
 #ifndef GUARD_DPSG_GITC_TYPES
 #define GUARD_DPSG_GITC_TYPES
 
+#include <functional>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 
@@ -17,6 +19,10 @@ struct strength {
   friend bool operator<(strength left, strength right) noexcept {
     return left.value < right.value;
   }
+
+  friend bool operator<=(strength left, strength right) noexcept {
+    return left.value <= right.value;
+  }
 };
 
 struct factory_info {
@@ -25,16 +31,21 @@ struct factory_info {
   strength production;
 };
 
-struct factory {
-  constexpr explicit factory(size_t id) : _id{id} {}
+using id_t = int;
+constexpr auto invalid_id = std::numeric_limits<id_t>::max();
 
-  size_t id() const { return _id; }
-  friend bool operator==(factory left, factory right) noexcept {
-    return left._id == right._id;
+struct factory_id {
+  constexpr explicit factory_id(id_t id) : value{id} {}
+
+  friend bool operator==(factory_id left, factory_id right) noexcept {
+    return left.value == right.value;
   }
 
- private:
-  size_t _id;
+  friend bool operator<(factory_id left, factory_id right) noexcept {
+    return left.value < right.value;
+  }
+
+  id_t value;
 };
 
 struct weight {
@@ -52,47 +63,63 @@ struct weight {
 };
 
 struct factory_distance {
-  constexpr factory_distance(factory f, weight d) : target{f}, distance{d} {}
-  factory target;
+  constexpr factory_distance(factory_id f, weight d) : target{f}, distance{d} {}
+  factory_id target;
   weight distance;
 };
 
 struct troop_info {
   owner_type owner;
-  factory origin;
+  factory_id origin;
   strength cyborgs;
   factory_distance distance;
 };
 
-struct entity_id {
-  int id;
-  friend bool operator==(entity_id left, entity_id right) noexcept {
-    return left.id == right.id;
+struct troop_id {
+  id_t value;
+  friend bool operator==(troop_id left, troop_id right) noexcept {
+    return left.value == right.value;
   }
-  friend bool operator<(entity_id left, entity_id right) noexcept {
-    return left.id < right.id;
+  friend bool operator<(troop_id left, troop_id right) noexcept {
+    return left.value < right.value;
   }
 };
 
-inline factory to_factory(entity_id id) {
-  return factory{static_cast<size_t>(id.id)};
-}
-inline entity_id to_id(factory id) {
-  return entity_id{static_cast<int>(id.id())};
-}
+}  // namespace gitc
 
-using factory_container = std::unordered_map<entity_id, factory_info>;
-using troop_container = std::unordered_map<entity_id, troop_info>;
-template <class T>
-inline strength production(const std::pair<T, factory_info>& p) {
+namespace std {
+template <>
+struct hash<::gitc::factory_id> {
+  auto operator()(::gitc::factory_id id) const {
+    return hash<::gitc::id_t>()(id.value);
+  }
+};
+template <>
+struct hash<::gitc::troop_id> {
+  auto operator()(::gitc::troop_id id) const {
+    return hash<::gitc::id_t>()(id.value);
+  }
+};
+}  // namespace std
+
+namespace gitc {
+
+using factory_container = std::unordered_map<factory_id, factory_info>;
+using factory_with_id = typename factory_container::value_type;
+using troop_container = std::unordered_map<troop_id, troop_info>;
+using troop_with_id = typename troop_container::value_type;
+
+inline strength production(const factory_with_id& p) {
   return p.second.production;
 }
 template <class T, class U>
 inline strength cyborgs(const std::pair<T, U>& p) {
   return p.second.cyborgs;
 }
-template <class T, class U>
-inline entity_id id(const std::pair<T, U>& p) {
+inline troop_id id(const troop_with_id& p) {
+  return p.first;
+}
+inline factory_id id(const factory_with_id& p) {
   return p.first;
 }
 template <class T, class U>
@@ -128,16 +155,5 @@ inline double operator/(T t, U u) {
   return static_cast<double>(t.value) / static_cast<double>(u.value);
 }
 }  // namespace gitc
-
-namespace std {
-template <>
-struct hash<::gitc::factory> {
-  auto operator()(::gitc::factory f) const { return hash<size_t>()(f.id()); }
-};
-template <>
-struct hash<::gitc::entity_id> {
-  auto operator()(::gitc::entity_id id) const { return hash<int>()(id.id); }
-};
-}  // namespace std
 
 #endif  // GUARD_DPSG_GITC_TYPES

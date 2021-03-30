@@ -32,13 +32,13 @@ graph parse_map() {
   graph map(factory_count);
 
   for (int i = 0; i < link_count; i++) {
-    size_t factory1;
-    size_t factory2;
+    id_t factory1;
+    id_t factory2;
     int distance;
     std::cin >> factory1 >> factory2 >> distance;
     std::cin.ignore();
-    factory f1{factory1};
-    factory f2{factory2};
+    factory_id f1{factory1};
+    factory_id f2{factory2};
     weight dist{distance};
     map.add_edge(f1, f2, dist);
   }
@@ -58,29 +58,29 @@ factory_info parse_factory_info(std::istream& in) {
 
 troop_info parse_troop_info(std::istream& in) {
   int owner;
-  size_t origin;
+  id_t origin;
   strength cyborgs;
-  size_t destination;
+  id_t destination;
   weight distance;
   in >> owner >> origin >> destination >> cyborgs.value >> distance.value;
   std::cin.ignore();
   return troop_info{static_cast<owner_type>(owner),
-                    factory{origin},
+                    factory_id{origin},
                     cyborgs,
-                    factory_distance{factory{destination}, distance}};
+                    factory_distance{factory_id{destination}, distance}};
 }
 
 void parse_entity(std::istream& in,
                   troop_container& troops,
                   factory_container& factories) {
-  entity_id id;
+  id_t id;
   std::string type;
-  in >> id.id >> type;
+  in >> id >> type;
   if (type == "FACTORY") {
-    upsert(factories, std::make_pair(id, parse_factory_info(in)));
+    upsert(factories, std::make_pair(factory_id{id}, parse_factory_info(in)));
   }
   else if (type == "TROOP") {
-    upsert(troops, std::make_pair(id, parse_troop_info(in)));
+    upsert(troops, std::make_pair(troop_id{id}, parse_troop_info(in)));
   }
 }
 

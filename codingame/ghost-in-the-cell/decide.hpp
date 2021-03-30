@@ -1,17 +1,17 @@
 #ifndef GUARD_DPSG_GTIC_DECIDE_HPP
 #define GUARD_DPSG_GTIC_DECIDE_HPP
 
-#include "./decisions.hpp"
-#include "./graph.hpp"
 #include "./types.hpp"
 
-#include <algorithm>
+#include "./decisions.hpp"
+#include "./graph.hpp"
+
 #include <numeric>
 #include <queue>
 #include <utility>
 
 namespace gitc {
-double strategic_value(entity_id fact_id,
+double strategic_value(factory_id fact_id,
                        const graph& map,
                        const factory_container& factories) {
   const auto& info = *factories.find(fact_id);
@@ -22,7 +22,7 @@ double strategic_value(entity_id fact_id,
   for (auto& fact : factories) {
     if (fact_id == id(fact))
       continue;
-    auto dist = map.distance(to_factory(fact_id), to_factory(id(fact)));
+    auto dist = map.distance(fact_id, id(fact));
     point_of_interest_proximity += production(fact) / dist;
     if (owner(fact) == owner_type::me) {
       friendly_proximity += cyborgs(fact) / dist * 2;
@@ -41,34 +41,32 @@ double strategic_value(entity_id fact_id,
          (enemy_proximity + friendly_proximity + point_of_interest_proximity);
 }
 
-double relative_strategic_value(entity_id target_id,
-                                entity_id rel_point_id,
+double relative_strategic_value(factory_id target_id,
+                                factory_id rel_point_id,
                                 const graph& map,
                                 const factory_container& factories) {
   double base = strategic_value(target_id, map, factories);
-  weight distance =
-      map.distance(to_factory(target_id), to_factory(rel_point_id));
+  weight distance = map.distance(target_id, rel_point_id);
   return base / distance.value;
 }
 
-strength incoming_soldiers(const entity_id& origin,
+strength incoming_soldiers(const factory_id& origin,
                            const troop_container& troops) {
-  return std::accumulate(
-      troops.begin(),
-      troops.end(),
-      0,
-      [origin](int acc, const auto& pair) -> int {
-        if (pair.second.distance.target == to_factory(origin)) {
-          int str = cyborgs(pair).value;
-          int own = static_cast<int>(owner(pair));
-          return acc + (own * str);
-        }
-        return acc;
-      });
+  return std::accumulate(troops.begin(),
+                         troops.end(),
+                         0,
+                         [origin](int acc, const auto& pair) -> int {
+                           if (pair.second.distance.target == origin) {
+                             int str = cyborgs(pair).value;
+                             int own = static_cast<int>(owner(pair));
+                             return acc + (own * str);
+                           }
+                           return acc;
+                         });
 }
 
 const double MAX_SENT = 0.9;
-strength available_soldiers(const entity_id& origin,
+strength available_soldiers(const factory_id& origin,
                             const factory_info& info,
                             const troop_container& troops) {
   auto coming_in = incoming_soldiers(origin, troops);
@@ -76,7 +74,7 @@ strength available_soldiers(const entity_id& origin,
       static_cast<double>(info.cyborgs.value + coming_in.value) * MAX_SENT)};
 }
 
-strength available_defence(const entity_id& fact,
+strength available_defence(const factory_id& fact,
                            const factory_info& info,
                            const troop_container& troops) {
   strength op_soldiers =
@@ -85,7 +83,7 @@ strength available_defence(const entity_id& fact,
   return op_soldiers.value + prod.value;
 }
 
-strength strength_required(const entity_id& fact,
+strength strength_required(const factory_id& fact,
                            const factory_info& info,
                            weight distance,
                            const troop_container& troops) {
@@ -100,7 +98,7 @@ decision_list decide(const graph& map,
                      const factory_container& factories,
                      const troop_container& troops) {
   decision_list decisions;
-  std::unordered_map<entity_id, double> strategic_values;
+  std::unordered_map<factory_id, double> strategic_values;
   for (auto& fact : factories) {
     strategic_values.emplace(fact.first,
                              strategic_value(fact.first, map, factories));
@@ -111,7 +109,7 @@ decision_list decide(const graph& map,
       auto soldiers = available_soldiers(fact.first, fact.second, troops);
 
       //  std::cerr << "considering factory: " << id(fact).id << std::endl;
-      std::priority_queue<std::tuple<double, entity_id, strength>> queue;
+      std::priority_queue<std::tuple<double, factory_id, strength>> queue;
       for (auto& target : factories) {
         if (id(target) == id(fact))
           continue;
@@ -125,8 +123,7 @@ decision_list decide(const graph& map,
                       0, available_defence(id(fact), fact.second, troops).value)
                 : strength_required(id(target),
                                     target.second,
-                                    map.distance(to_factory(id(target)),
-                                                 to_factory(id(fact))),
+                                    map.distance(id(target), id(fact)),
                                     troops)
                       .value;
 
@@ -153,9 +150,8 @@ decision_list decide(const graph& map,
         if (soldiers.value >= req_soldiers.value && req_soldiers.value > 0) {
           int to_send = std::min(req_soldiers.value, opti_soldiers.value);
           soldiers.value -= to_send;
-          decisions.emplace_back(move{strength{to_send},
-                                      to_factory(id(fact)),
-                                      to_factory(std::get<1>(target))});
+          decisions.emplace_back(
+              move{strength{to_send}, id(fact), std::get<1>(target)});
         }
       }
     }

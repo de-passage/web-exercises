@@ -3,25 +3,29 @@
 #include <graph.hpp>
 
 using gitc::graph;
-using f = gitc::factory;
+using f = gitc::factory_id;
 using w = gitc::weight;
 
-graph make_graph(size_t n) {
+graph make_graph(int n) {
   assert(n > 0);
-  graph g{n};
-  for (size_t i = 0; i < n - 1; ++i) {
-    for (size_t j = i + 1; j < n; ++j)
+  graph g{static_cast<size_t>(n)};
+  for (int i = 0; i < n - 1; ++i) {
+    for (int j = i + 1; j < n; ++j)
       g.add_edge(f{i}, f{j}, w{static_cast<int>(i + j)});
   }
   return g;
 }
 
-#define CHECK_EDGES(g)                                               \
-  for (size_t i = 0; i < g.node_count() - 1; ++i) {                  \
-    for (size_t j = i + 1; j < g.node_count(); ++j) {                \
-      ASSERT_EQ(g.distance(f{i}, f{j}), w{static_cast<int>(i + j)}); \
-      ASSERT_EQ(g.distance(f{j}, f{i}), w{static_cast<int>(i + j)}); \
-    }                                                                \
+#define CHECK_EDGES(g)                                     \
+  for (size_t i = 0; i < g.node_count() - 1; ++i) {        \
+    for (size_t j = i + 1; j < g.node_count(); ++j) {      \
+      ASSERT_EQ(g.distance(f{static_cast<gitc::id_t>(i)},  \
+                           f{static_cast<gitc::id_t>(j)}), \
+                w{static_cast<int>(i + j)});               \
+      ASSERT_EQ(g.distance(f{static_cast<gitc::id_t>(j)},  \
+                           f{static_cast<gitc::id_t>(i)}), \
+                w{static_cast<int>(i + j)});               \
+    }                                                      \
   }
 
 TEST(Graph, ShouldConstruct) {
@@ -35,7 +39,7 @@ TEST(Graph, ShouldConstruct) {
 }
 
 TEST(Graph, ShouldMove) {
-  const size_t size = 8;
+  const int size = 8;
   graph g1{make_graph(size)};
   ASSERT_EQ(g1.node_count(), size);
   CHECK_EDGES(g1)
@@ -52,7 +56,7 @@ TEST(Graph, ShouldMove) {
 }
 
 TEST(Graph, ShouldCopy) {
-  const size_t size = 8;
+  const int size = 8;
   graph g1{make_graph(size)};
   ASSERT_EQ(g1.node_count(), size);
   CHECK_EDGES(g1)
@@ -74,8 +78,8 @@ TEST(Graph, ShouldCopy) {
 }
 
 TEST(Graph, ShouldSwap) {
-  const size_t s1 = 8;
-  const size_t s2 = 5;
+  const int s1 = 8;
+  const int s2 = 5;
   graph g1{make_graph(s1)};
   graph g2{make_graph(s2)};
   ASSERT_EQ(g1.node_count(), s1);
