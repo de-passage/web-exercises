@@ -15,8 +15,11 @@ namespace st = dpsg::strong_types;
 enum class owner_type : int { me = 1, opponent = -1, neutral = 0 };
 enum class entity_type : int { troop, factory };
 
-template <class T, class ValueType = int>
-struct value_impl : st::comparable<T>, st::arithmetic<T> {
+using id_t = int;
+constexpr auto invalid_id = std::numeric_limits<id_t>::max();
+
+template <class T, class ValueType, class... Ts>
+struct value_impl : st::derive_t<T, Ts...> {
   using real_type = T;
   using value_type = ValueType;
   value_type value;
@@ -31,12 +34,18 @@ struct value_impl : st::comparable<T>, st::arithmetic<T> {
       : value{std::move(lower).value} {}
 };
 
-struct strength : value_impl<strength, int> {
+template <class T, class... Ts>
+using int_value = value_impl<T, int, st::comparable, st::arithmetic, Ts...>;
+
+template <class T>
+using strong_id = value_impl<T, id_t, st::comparable>;
+
+struct strength : int_value<strength, st::comparable_with<id_t>> {
   constexpr strength() noexcept = default;
   constexpr strength(int value) noexcept : value_impl{value} {}
 };
 
-struct duration : value_impl<duration, int> {
+struct duration : int_value<duration> {
   template <class... Ts>
   constexpr duration(Ts... ts) : value_impl<duration, int>{ts...} {}
 };
@@ -47,14 +56,11 @@ struct factory_info {
   strength production;
 };
 
-using id_t = int;
-constexpr auto invalid_id = std::numeric_limits<id_t>::max();
-
-struct factory_id : value_impl<factory_id, id_t> {
+struct factory_id : strong_id<factory_id> {
   constexpr explicit factory_id(id_t id) : value_impl{id} {}
 };
 
-struct weight : value_impl<weight, id_t> {
+struct weight : int_value<weight> {
   constexpr weight() noexcept = default;
   constexpr weight(int d) : value_impl{d} {}
 };
@@ -72,7 +78,7 @@ struct troop_info {
   factory_distance distance;
 };
 
-struct troop_id : value_impl<troop_id, id_t> {
+struct troop_id : strong_id<troop_id> {
   constexpr troop_id(id_t id) noexcept : value_impl{id} {}
 };
 }  // namespace gitc

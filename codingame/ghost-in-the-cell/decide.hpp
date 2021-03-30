@@ -131,7 +131,7 @@ decision_list decide(const graph& map,
         queue.emplace(r_strat_value, id(target), str);
       }
 
-      while (soldiers.value > 0 && queue.size() > 0) {
+      while (soldiers > 0 && queue.size() > 0) {
         auto target = std::move(queue.top());
         queue.pop();
 
@@ -149,7 +149,7 @@ decision_list decide(const graph& map,
         //            << " opti soldiers: " << opti_soldiers.value
         //            << " strat: " << std::get<0>(target)
         //            << std::endl;
-        if (soldiers >= req_soldiers && req_soldiers.value > 0) {
+        if (soldiers >= req_soldiers && req_soldiers > 0) {
           auto to_send = std::min(req_soldiers, opti_soldiers);
           soldiers -= to_send;
           decisions.emplace_back(

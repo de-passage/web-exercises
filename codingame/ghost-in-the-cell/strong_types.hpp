@@ -88,6 +88,14 @@ struct get_value_t {
   }
 };
 
+template <class To>
+struct get_value_then_cast_t {
+  template <class T>
+  inline constexpr T operator()(T&& t) noexcept {
+    return static_cast<To>(get_value_t{}(std::forward<T>(t)));
+  }
+};
+
 struct passthrough_t {
   template <class T>
   inline constexpr decltype(auto) operator()(T&& t) const noexcept {
@@ -117,28 +125,23 @@ template <class Op,
           class Transform = get_value_t>
 struct unary_operation_implementation;
 
-#define DPSG_DEFINE_FRIEND_BINARY_OPERATOR_IMPLEMENTATION(op, sym)          \
-  template <class Left,                                                     \
-            class Right,                                                    \
-            class Result,                                                   \
-            class TransformLeft,                                            \
-            class TransformRight>                                           \
-  struct binary_operation_implementation<op##_t,                            \
-                                         Left,                              \
-                                         Right,                             \
-                                         Result,                            \
-                                         TransformLeft,                     \
-                                         TransformRight> {                  \
-    template <class T,                                                      \
-              class U,                                                      \
-              std::enable_if_t<                                             \
-                  std::conjunction_v<std::is_same<std::decay_t<T>, Left>,   \
-                                     std::is_same<std::decay_t<U>, Right>>, \
-                  int> = 0>                                                 \
-    friend constexpr decltype(auto) operator sym(T&& left, U&& right) {     \
-      return Result{}(op##_t{}(TransformLeft{}(std::forward<T>(left)),      \
-                               TransformRight{}(std::forward<U>(right))));  \
-    }                                                                       \
+#define DPSG_DEFINE_FRIEND_BINARY_OPERATOR_IMPLEMENTATION(op, sym)     \
+  template <class Left,                                                \
+            class Right,                                               \
+            class Result,                                              \
+            class TransformLeft,                                       \
+            class TransformRight>                                      \
+  struct binary_operation_implementation<op##_t,                       \
+                                         Left,                         \
+                                         Right,                        \
+                                         Result,                       \
+                                         TransformLeft,                \
+                                         TransformRight> {             \
+    friend constexpr decltype(auto) operator sym(const Left& left,     \
+                                                 const Right& right) { \
+      return Result{}(                                                 \
+          op##_t{}(TransformLeft{}(left), TransformRight{}(right)));   \
+    }                                                                  \
   };
 
 #define DPSG_DEFINE_FRIEND_SELF_ASSIGN_BINARY_OPERATOR_IMPLEMENTATION(op, sym) \
@@ -273,7 +276,11 @@ template <class U, class... Ts>
 struct for_each<tuple<Ts...>, U> : U::template type<Ts>... {};
 
 namespace detail {
-template <class Arg1, class Arg2, class R, class T1, class T2>
+template <class Arg1,
+          class Arg2,
+          class R,
+          class T1 = get_value_t,
+          class T2 = get_value_t>
 struct make_commutative_operator {
   template <class Op>
   using type = commutative_operator_implementation<Op, Arg1, Arg2, R, T1, T2>;
@@ -290,16 +297,56 @@ struct make_unary_operator {
 };
 }  // namespace detail
 
-template <class Arg>
-struct comparable
-    : for_each<comparison_operators,
-               detail::make_reflexive_operator<Arg, passthrough_t>> {};
+struct comparable {
+  template <class Arg>
+  struct type : for_each<comparison_operators,
+                         detail::make_reflexive_operator<Arg, passthrough_t>> {
+  };
+};
 
-template <class Arg>
-struct arithmetic
-    : for_each<binary_arithmetic_operators,
-               detail::make_reflexive_operator<Arg, construct_t<Arg>>>,
-      for_each<unary_arithmetic_operators, detail::make_unary_operator<Arg>> {};
+template <class Arg2>
+struct comparable_with {
+  template <class Arg1>
+  struct type
+      : for_each<comparison_operators,
+                 detail::make_commutative_operator<Arg1, Arg2, passthrough_t>> {
+  };
+};
+
+struct arithmetic {
+  template <class Arg>
+  struct type
+      : for_each<binary_arithmetic_operators,
+                 detail::make_reflexive_operator<Arg, construct_t<Arg>>>,
+        for_each<unary_arithmetic_operators, detail::make_unary_operator<Arg>> {
+  };
+};
+
+namespace detail {
+struct deduce;
+}
+
+template <class Arg2,
+          class R = detail::deduce,
+          class T1 = get_value_t,
+          class T2 = get_value_t>
+struct arithmetically_compatible_with {
+  template <class Arg1>
+  struct type
+      : for_each<binary_arithmetic_operators,
+                 detail::make_commutative_operator<
+                     Arg1,
+                     Arg2,
+                     std::conditional_t<std::is_same_v<detail::deduce, R>,
+                                        construct_t<Arg1>,
+                                        R>,
+                     T1,
+                     T2>> {};
+};
+
+template <class T, class... Ts>
+struct derive_t : Ts::template type<T>... {};
+
 }  // namespace strong_types
 }  // namespace dpsg
 
