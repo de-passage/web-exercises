@@ -7,7 +7,7 @@ namespace gitc {
 
 namespace detail {
 struct graph_container {
-  weight* _weights;
+  duration* _durations;
   size_t _count;
 };
 }  // namespace detail
@@ -15,22 +15,22 @@ struct graph_container {
 class graph : private detail::graph_container {
   using base = detail::graph_container;
   using base::_count;
-  using base::_weights;
+  using base::_durations;
 
  public:
   explicit graph(size_t node_count)
-      : base{new weight[node_count * node_count], node_count} {
+      : base{new duration[node_count * node_count], node_count} {
     for (size_t i = 0; i < _count; ++i) {
       for (size_t j = 0; j < _count; ++j) {
         add_edge(factory_id{static_cast<id_t>(i)},
                  factory_id{static_cast<id_t>(j)},
-                 weight{i == j ? 0 : std::numeric_limits<int>::max()});
+                 duration{i == j ? 0 : std::numeric_limits<int>::max()});
       }
     }
   }
 
   graph(const graph& to_copy)
-      : base{new weight[to_copy.node_count() * to_copy.node_count()],
+      : base{new duration[to_copy.node_count() * to_copy.node_count()],
              to_copy.node_count()} {
     for (size_t i = 0; i < _count; ++i) {
       for (size_t j = 0; j < _count; ++j) {
@@ -41,7 +41,7 @@ class graph : private detail::graph_container {
   }
 
   graph(graph&& to_copy)
-      : base{std::exchange(to_copy._weights, nullptr),
+      : base{std::exchange(to_copy._durations, nullptr),
              std::exchange(to_copy._count, 0)} {}
 
   graph& operator=(const graph& g) {
@@ -54,16 +54,16 @@ class graph : private detail::graph_container {
     return *this;
   }
 
-  ~graph() { delete _weights; }
+  ~graph() { delete _durations; }
 
   friend void swap(graph& left, graph& right) { left.swap(right); }
 
-  void add_edge(factory_id left, factory_id right, weight distance) {
+  void add_edge(factory_id left, factory_id right, duration distance) {
     _distance(left, right) = distance;
     _distance(right, left) = distance;
   }
 
-  weight distance(factory_id left, factory_id right) const {
+  duration distance(factory_id left, factory_id right) const {
     return const_cast<graph*>(this)->_distance(left, right);
   }
 
@@ -71,24 +71,24 @@ class graph : private detail::graph_container {
    private:
     using base = detail::graph_container;
     using base::_count;
-    using base::_weights;
-    node_range(weight* w, size_t count) : base{w, count} {}
+    using base::_durations;
+    node_range(duration* w, size_t count) : base{w, count} {}
     friend class graph;
   };
 
-  node_range nodes() const { return node_range{_weights, _count}; }
+  node_range nodes() const { return node_range{_durations, _count}; }
 
   size_t node_count() const { return _count; }
 
  private:
-  weight& _distance(factory_id left, factory_id right) {
-    return _weights[left.value * static_cast<id_t>(_count) + right.value];
+  duration& _distance(factory_id left, factory_id right) {
+    return _durations[left.value * static_cast<id_t>(_count) + right.value];
   }
 
   void swap(graph& g) {
     using std::swap;
     swap(_count, g._count);
-    swap(_weights, g._weights);
+    swap(_durations, g._durations);
   }
 };
 

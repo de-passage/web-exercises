@@ -4,7 +4,7 @@
 
 using gitc::graph;
 using f = gitc::factory_id;
-using w = gitc::weight;
+using w = gitc::duration;
 
 graph make_graph(int n) {
   assert(n > 0);

@@ -46,7 +46,7 @@ double relative_strategic_value(factory_id target_id,
                                 const graph& map,
                                 const factory_container& factories) {
   double base = strategic_value(target_id, map, factories);
-  weight distance = map.distance(target_id, rel_point_id);
+  duration distance = map.distance(target_id, rel_point_id);
   return base / distance.value;
 }
 
@@ -54,8 +54,8 @@ strength incoming_soldiers(const factory_id& origin,
                            const troop_container& troops) {
   return std::accumulate(troops.begin(),
                          troops.end(),
-                         0,
-                         [origin](int acc, const auto& pair) -> int {
+                         strength{0},
+                         [origin](strength acc, const auto& pair) -> strength {
                            if (pair.second.distance.target == origin) {
                              int str = cyborgs(pair).value;
                              int own = static_cast<int>(owner(pair));
@@ -77,19 +77,18 @@ strength available_soldiers(const factory_id& origin,
 strength available_defence(const factory_id& fact,
                            const factory_info& info,
                            const troop_container& troops) {
-  strength op_soldiers =
-      info.cyborgs.value + incoming_soldiers(fact, troops).value;
+  strength op_soldiers = info.cyborgs + incoming_soldiers(fact, troops);
   return op_soldiers;
 }
 
 strength strength_required(const factory_id& fact,
                            const factory_info& info,
-                           weight distance,
+                           duration distance,
                            const troop_container& troops) {
   strength op_soldiers = info.cyborgs - incoming_soldiers(fact, troops);
   int prod = abs(static_cast<int>(owner(info)) * info.production.value *
                  distance.value);
-  return prod + op_soldiers.value + 1;
+  return strength{prod + op_soldiers.value + 1};
 }
 
 decision_list decide(const graph& map,

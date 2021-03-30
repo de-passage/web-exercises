@@ -39,7 +39,7 @@ graph parse_map() {
     std::cin.ignore();
     factory_id f1{factory1};
     factory_id f2{factory2};
-    weight dist{distance};
+    duration dist{distance};
     map.add_edge(f1, f2, dist);
   }
 
@@ -61,7 +61,7 @@ troop_info parse_troop_info(std::istream& in) {
   id_t origin;
   strength cyborgs;
   id_t destination;
-  weight distance;
+  duration distance;
   in >> owner >> origin >> destination >> cyborgs.value >> distance.value;
   std::cin.ignore();
   return troop_info{static_cast<owner_type>(owner),

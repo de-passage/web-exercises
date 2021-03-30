@@ -40,14 +40,18 @@ using int_value = value_impl<T, int, st::comparable, st::arithmetic, Ts...>;
 template <class T>
 using strong_id = value_impl<T, id_t, st::comparable>;
 
-struct strength : int_value<strength, st::comparable_with<id_t>> {
-  constexpr strength() noexcept = default;
-  constexpr strength(int value) noexcept : value_impl{value} {}
+struct strength
+    : int_value<
+          strength,
+          st::comparable_with<id_t>,
+          st::arithmetically_compatible_with<int, st::construct_t<strength>>> {
+  constexpr explicit strength() noexcept = default;
+  constexpr explicit strength(int value) noexcept : value_impl{value} {}
 };
 
 struct duration : int_value<duration> {
   template <class... Ts>
-  constexpr duration(Ts... ts) : value_impl<duration, int>{ts...} {}
+  constexpr explicit duration(Ts... ts) : int_value<duration>{ts...} {}
 };
 
 struct factory_info {
@@ -60,15 +64,11 @@ struct factory_id : strong_id<factory_id> {
   constexpr explicit factory_id(id_t id) : value_impl{id} {}
 };
 
-struct weight : int_value<weight> {
-  constexpr weight() noexcept = default;
-  constexpr weight(int d) : value_impl{d} {}
-};
-
 struct factory_distance {
-  constexpr factory_distance(factory_id f, weight d) : target{f}, distance{d} {}
+  constexpr explicit factory_distance(factory_id f, duration d)
+      : target{f}, distance{d} {}
   factory_id target;
-  weight distance;
+  duration distance;
 };
 
 struct troop_info {
@@ -79,7 +79,7 @@ struct troop_info {
 };
 
 struct troop_id : strong_id<troop_id> {
-  constexpr troop_id(id_t id) noexcept : value_impl{id} {}
+  constexpr explicit troop_id(id_t id) noexcept : value_impl{id} {}
 };
 }  // namespace gitc
 
