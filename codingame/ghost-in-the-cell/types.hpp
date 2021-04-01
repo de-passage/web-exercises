@@ -34,30 +34,35 @@ struct value_impl : st::derive_t<T, Ts...> {
       : value{std::move(lower).value} {}
 };
 
-template <class T, class... Ts>
-using int_value =
+template <class T, class Ty, class... Ts>
+using strong_pod =
     value_impl<T,
-               int,
+               Ty,
                st::comparable,
                st::arithmetic,
-               st::comparable_with<int>,
-               st::arithmetically_compatible_with<int, st::construct_t<T>>,
+               st::comparable_with<Ty>,
+               st::arithmetically_compatible_with<Ty, st::construct_t<T>>,
                Ts...>;
 
-template <class T, class... Ts>
-struct tagged_int : int_value<tagged_int<T, Ts...>, Ts...> {
-  using base = int_value<tagged_int<T, Ts...>, Ts...>;
+template <class T, class Ty, class... Ts>
+struct tagged_value : strong_pod<tagged_value<T, Ty, Ts...>, Ty, Ts...> {
+  using base = strong_pod<tagged_value<T, Ty, Ts...>, Ty, Ts...>;
   template <class... Us>
-  constexpr explicit tagged_int(Us... ts) : base{ts...} {}
+  constexpr explicit tagged_value(Us... ts) : base{ts...} {}
 };
+template <class T, class... Ts>
+using int_value = tagged_value<T, int, Ts...>;
+template <class T, class... Ts>
+using double_value = tagged_value<T, double, Ts...>;
 
 template <class T>
 using strong_id = value_impl<T, id_t, st::comparable>;
 
 namespace detail {
 template <class T>
-using strength_impl = int_value<
+using strength_impl = strong_pod<
     T,
+    int,
     st::arithmetically_compatible_with<double,
                                        st::cast_to_then_construct_t<int, T>,
                                        st::get_value_then_cast_t<double>>>;
@@ -67,20 +72,26 @@ struct strength : detail::strength_impl<strength> {
   constexpr explicit strength(Ts... ts)
       : detail::strength_impl<strength>{ts...} {}
 };
-using production_capacity = tagged_int<struct production_tag>;
-using duration = tagged_int<struct duration_tag,
-                            st::commutative_under<st::multiplies_t,
-                                                  production_capacity,
-                                                  st::construct_t<strength>>>;
+using production_capacity = int_value<struct production_tag>;
+using duration = int_value<struct duration_tag,
+                           st::commutative_under<st::multiplies_t,
+                                                 production_capacity,
+                                                 st::construct_t<strength>>>;
+
+using strategic_value = double_value<struct strategic_value_tag>;
+
+struct factory_id : strong_id<factory_id> {
+  constexpr explicit factory_id(id_t id) noexcept : value_impl{id} {}
+};
+
+struct troop_id : strong_id<troop_id> {
+  constexpr explicit troop_id(id_t id) noexcept : value_impl{id} {}
+};
 
 struct factory_info {
   owner_type owner;
   strength cyborgs;
   production_capacity production;
-};
-
-struct factory_id : strong_id<factory_id> {
-  constexpr explicit factory_id(id_t id) : value_impl{id} {}
 };
 
 struct troop_info {
@@ -89,10 +100,6 @@ struct troop_info {
   strength cyborgs;
   duration distance;
   factory_id target;
-};
-
-struct troop_id : strong_id<troop_id> {
-  constexpr explicit troop_id(id_t id) noexcept : value_impl{id} {}
 };
 }  // namespace gitc
 
