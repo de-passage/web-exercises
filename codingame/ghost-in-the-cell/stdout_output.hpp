@@ -8,15 +8,18 @@
 namespace gitc {
 
 std::ostream& operator<<(std::ostream& out, const decision& d) {
-  return d.dispatch([&out]() -> decltype(auto) { return out << "WAIT"; },
-                    [&out](const move& m) -> decltype(auto) {
-                      return out << "MOVE " << m.origin.value << " "
-                                 << m.destination.value << " "
-                                 << m.cyborgs.value;
-                    },
-                    [&out](const increment_production& p) -> decltype(auto) {
-                      return out << "INC " << p.target.value << " ";
-                    });
+  return d.dispatch(
+      [&out]() -> decltype(auto) { return out << "WAIT"; },
+      [&out](const move& m) -> decltype(auto) {
+        return out << "MOVE " << m.origin.value << " " << m.destination.value
+                   << " " << m.cyborgs.value;
+      },
+      [&out](const increment_production& p) -> decltype(auto) {
+        return out << "INC " << p.target.value;
+      },
+      [&out](const launch_bomb& b) -> decltype(auto) {
+        return out << "BOMB " << b.origin.value << " " << b.destination.value;
+      });
 }
 
 std::ostream& operator<<(std::ostream& out, const decision_list& decisions) {

@@ -18,25 +18,33 @@ struct increment_production {
   factory_id target;
 };
 
-struct bomb {};
+struct launch_bomb {
+  factory_id origin;
+  factory_id destination;
+};
 
 class decision {
  public:
   decision(wait_t) : _type(decision_type::wait), _wait{} {}
   decision(const move& m) : _type{decision_type::move}, _move{m} {}
   decision(increment_production p) : _type(decision_type::inc), _inc{p} {}
+  decision(const launch_bomb& b) : _type(decision_type::bomb), _bomb{b} {}
 
-  template <class W, class M, class I>
+  template <class W, class M, class I, class B>
   decltype(auto) dispatch(const W& with_wait,
                           const M& with_move,
-                          const I& with_inc) const {
-    if (_type == decision_type::wait) {
-      return with_wait();
+                          const I& with_inc,
+                          const B& with_bomb) const {
+    switch (_type) {
+      case decision_type::bomb:
+        return with_bomb(_bomb);
+      case decision_type::inc:
+        return with_inc(_inc);
+      case decision_type::move:
+        return with_move(_move);
+      default:
+        return with_wait();
     }
-    else if (_type == decision_type::inc) {
-      return with_inc(_inc);
-    }
-    return with_move(_move);
   }
 
  private:
@@ -44,7 +52,7 @@ class decision {
   union {
     wait_t _wait;
     move _move;
-    bomb _bomb;
+    launch_bomb _bomb;
     increment_production _inc;
   };
 };
