@@ -16,7 +16,6 @@ enum class owner_type : int { me = 1, opponent = -1, neutral = 0 };
 enum class entity_type : int { troop, factory };
 
 using id_t = int;
-constexpr auto invalid_id = std::numeric_limits<id_t>::max();
 
 template <class T, class ValueType, class... Ts>
 struct value_impl : st::derive_t<T, Ts...> {
@@ -55,8 +54,11 @@ using int_value = tagged_value<T, int, Ts...>;
 template <class T, class... Ts>
 using double_value = tagged_value<T, double, Ts...>;
 
-template <class T>
-using strong_id = value_impl<T, id_t, st::comparable>;
+template <class Tag>
+struct strong_id : value_impl<strong_id<Tag>, id_t, st::comparable> {
+  constexpr explicit strong_id(id_t id)
+      : value_impl<strong_id<Tag>, id_t, st::comparable>{id} {}
+};
 
 namespace detail {
 template <class T>
@@ -80,19 +82,13 @@ using duration = int_value<struct duration_tag,
 
 using strategic_value = double_value<struct strategic_value_tag>;
 
-struct factory_id : strong_id<factory_id> {
-  constexpr explicit factory_id(id_t id) noexcept : value_impl{id} {}
-};
-
-struct troop_id : strong_id<troop_id> {
-  constexpr explicit troop_id(id_t id) noexcept : value_impl{id} {}
-};
-
 struct factory_info {
   owner_type owner;
   strength cyborgs;
   production_capacity production;
+  duration inactivity;
 };
+using factory_id = strong_id<factory_info>;
 
 struct troop_info {
   owner_type owner;
@@ -101,6 +97,15 @@ struct troop_info {
   duration distance;
   factory_id target;
 };
+using troop_id = strong_id<troop_info>;
+
+struct bomb_info {
+  owner_type owner;
+  factory_id origin;
+  factory_id target;
+  duration distance;
+};
+using bomb_id = strong_id<bomb_info>;
 }  // namespace gitc
 
 namespace std {
@@ -116,14 +121,27 @@ struct hash<::gitc::troop_id> {
     return hash<::gitc::id_t>()(id.value);
   }
 };
+template <>
+struct hash<::gitc::bomb_id> {
+  auto operator()(::gitc::bomb_id id) const {
+    return hash<::gitc::id_t>()(id.value);
+  }
+};
 }  // namespace std
 
 namespace gitc {
 
-using factory_container = std::unordered_map<factory_id, factory_info>;
-using factory_with_id = typename factory_container::value_type;
-using troop_container = std::unordered_map<troop_id, troop_info>;
-using troop_with_id = typename troop_container::value_type;
+template <class T>
+using entity_container = std::unordered_map<strong_id<T>, T>;
+template <class T>
+using with_id = typename entity_container<T>::value_type;
+
+using factory_container = entity_container<factory_info>;
+using factory_with_id = with_id<factory_info>;
+using troop_container = entity_container<troop_info>;
+using troop_with_id = with_id<troop_info>;
+using bomb_container = entity_container<bomb_info>;
+using bomb_with_id = with_id<bomb_info>;
 
 inline production_capacity production(const factory_with_id& p) {
   return p.second.production;
@@ -137,6 +155,12 @@ inline strength cyborgs(const std::pair<T, U>& p) {
 }
 inline strength cyborgs(const factory_info& i) {
   return i.cyborgs;
+}
+inline duration inactivity(const factory_with_id& i) {
+  return i.second.inactivity;
+}
+inline duration inactivity(const factory_info& i) {
+  return i.inactivity;
 }
 inline troop_id id(const troop_with_id& p) {
   return p.first;
@@ -176,6 +200,18 @@ inline factory_id origin(const troop_with_id& p) {
   return p.second.origin;
 }
 inline factory_id origin(const troop_info& p) {
+  return p.origin;
+}
+inline factory_id target(const bomb_with_id& p) {
+  return p.second.target;
+}
+inline factory_id target(const bomb_info& p) {
+  return p.target;
+}
+inline factory_id origin(const bomb_with_id& p) {
+  return p.second.origin;
+}
+inline factory_id origin(const bomb_info& p) {
   return p.origin;
 }
 

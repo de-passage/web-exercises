@@ -11,7 +11,7 @@ namespace gitc {
 
 struct cache {
   struct factory_strategic_data {
-    strategic_value strategic_value;
+    strategic_value value;
     strength incoming_soldiers;
   };
 
@@ -29,7 +29,7 @@ struct cache {
   }
 
   strategic_value strategic_value_for(factory_id id) const {
-    return data_for(id).strategic_value;
+    return data_for(id).value;
   }
 
   strength incoming_soldiers_for(factory_id id) const {
@@ -59,24 +59,22 @@ strength incoming_soldiers(const factory_id& origin,
 }
 
 const double MAX_SENT = 0.9;
-strength available_soldiers(const factory_with_id& origin,
-                            const troop_container& troops) {
-  auto coming_in = incoming_soldiers(id(origin), troops);
+strength available_soldiers(const factory_with_id& origin, const cache& cache) {
+  auto coming_in = cache.incoming_soldiers_for(id(origin));
   return (cyborgs(origin) + coming_in) * MAX_SENT;
 }
 
-strength available_defence(const factory_with_id& factory,
-                           const troop_container& troops) {
+strength available_defence(const factory_with_id& factory, const cache& cache) {
   strength op_soldiers =
-      cyborgs(factory) + incoming_soldiers(id(factory), troops);
+      cyborgs(factory) + cache.incoming_soldiers_for(id(factory));
   return op_soldiers;
 }
 
 strength strength_required(const factory_with_id& factory,
                            duration distance,
-                           const troop_container& troops) {
+                           const cache& cache) {
   strength op_soldiers =
-      cyborgs(factory) - incoming_soldiers(id(factory), troops);
+      cyborgs(factory) - cache.incoming_soldiers_for(id(factory));
   strength prod =
       static_cast<int>(owner(factory)) * production(factory) * distance;
   prod = prod >= 0 ? prod : -prod;
