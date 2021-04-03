@@ -1,0 +1,1 @@
+make_test(golf-winamax golf_winamax.cpp)
