@@ -73,6 +73,15 @@ struct cell {
     return c.get_type() == type::ball && c.ball_count().value == b.value;
   }
 
+  friend constexpr bool operator==(const cell& left,
+                                   const cell& right) noexcept {
+    if (left._type != right._type)
+      return false;
+    if (left._type == type::ball)
+      return left == right._ball;
+    return true;
+  }
+
   template <class T>
   friend constexpr bool operator!=(const cell& c, T t) noexcept {
     return !(c == t);
@@ -162,9 +171,9 @@ struct two_d_array {
     if (left._height != right._height || left._width != right._width)
       return false;
 
-    for (size_t i = 0; i < array._height; ++i) {
-      for (size_t j = 0; j < array._width; ++j) {
-        if (left.at(i, j) != right.at(i.j)) {
+    for (size_t i = 0; i < left._height; ++i) {
+      for (size_t j = 0; j < left._width; ++j) {
+        if (left.at(i, j) != right.at(i, j)) {
           return false;
         }
       }
@@ -205,6 +214,13 @@ struct answer_cell {
     return left._type == type::path && left._path.value == right.value;
   }
 
+  friend constexpr bool operator==(answer_cell left,
+                                   answer_cell right) noexcept {
+    return left._type == right._type &&
+           (left._type == type::path ? left._path.value == right._path.value
+                                     : true);
+  }
+
   template <class T>
   friend constexpr bool operator!=(answer_cell left, T right) noexcept {
     return !(left == right);
@@ -218,6 +234,27 @@ struct answer_cell {
       out << cell._path;
     }
     return out;
+  }
+
+  friend std::istream& operator>>(std::istream& in, answer_cell& cell) {
+    char c;
+    in >> c;
+    if (c == '^') {
+      cell = {up};
+    }
+    else if (c == '>') {
+      cell = {right};
+    }
+    else if (c == '<') {
+      cell = {left};
+    }
+    else if (c == 'v') {
+      cell = {down};
+    }
+    else {
+      cell = {empty};
+    }
+    return in;
   }
 
  private:

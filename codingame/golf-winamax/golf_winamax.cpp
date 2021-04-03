@@ -80,3 +80,36 @@ TEST(Answer, SerializesProperly) {
   out << a;
   ASSERT_EQ(out.str(), "v..\nv..\n>.^\n");
 }
+
+TEST(Answer, EqualiyShouldBehaveProperly) {
+  ss in;
+  in << "v.." << std::endl;
+  in << "v.." << std::endl;
+  in << ">.^" << std::endl;
+  answer a1(3, 3), a2(3, 3);
+
+  in >> a1;
+  a2.at(0, 0) = down;
+  a2.at(1, 0) = down;
+  a2.at(2, 0) = right;
+  a2.at(2, 2) = up;
+
+  ASSERT_EQ(a1, a2);
+}
+
+TEST(Field, EqualityShouldBehaveProperly) {
+  ss input;
+  input << "2.X" << std::endl;
+  input << "..H" << std::endl;
+  input << ".H1" << std::endl;
+  field f1(3, 3);
+  input >> f1;
+  field f2(3, 3);
+  f2.at(0, 0) = ball{2};
+  f2.at(0, 2) = water;
+  f2.at(1, 2) = hole;
+  f2.at(2, 1) = hole;
+  f2.at(2, 2) = ball{1};
+
+  ASSERT_EQ(f1, f2);
+}
