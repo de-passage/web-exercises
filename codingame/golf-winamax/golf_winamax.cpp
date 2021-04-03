@@ -6,8 +6,8 @@
 using ss = std::stringstream;
 
 TEST(Field, ShouldParseTrivialExample) {
-  ss input("1H");
-  auto f = parse_field(input, 2, 1);
+  ss input("2 1\n1H");
+  auto f = parse_field(input);
 
   ASSERT_TRUE(f.at(0, 0) == ball{1});
   ASSERT_TRUE(f.at(0, 1) == hole);
@@ -19,7 +19,8 @@ TEST(Field, ShouldParseMoreComplicatedExample) {
   input << "..H" << std::endl;
   input << ".H1" << std::endl;
 
-  auto f = parse_field(input, 3, 3);
+  field f(3, 3);
+  input >> f;
 
   for (size_t i = 0; i < 3; ++i)
     for (size_t j = 0; j < 3; ++j) {
@@ -95,6 +96,9 @@ TEST(Answer, EqualiyShouldBehaveProperly) {
   a2.at(2, 2) = up;
 
   ASSERT_EQ(a1, a2);
+
+  a2.at(1, 1) = left;
+  ASSERT_NE(a1, a2);
 }
 
 TEST(Field, EqualityShouldBehaveProperly) {
@@ -112,4 +116,76 @@ TEST(Field, EqualityShouldBehaveProperly) {
   f2.at(2, 2) = ball{1};
 
   ASSERT_EQ(f1, f2);
+
+  f2.at(2, 2) = water;
+  ASSERT_NE(f1, f2);
+}
+
+TEST(Solve, ShouldPassTrivialTest) {
+  ss input("2 1\n1H");
+  auto f = parse_field(input);
+  input.str(">.");
+  input.clear();
+  answer a(2, 1);
+  input >> a;
+
+  ASSERT_EQ(solve(f), a);
+}
+
+TEST(Solve, ShouldPassExample) {
+  ss input("3 3\n2.x\n..H\n.H1");
+  auto f = parse_field(input);
+  input.str("v..\nv..\n>.^");
+  input.clear();
+  answer a(2, 1);
+  input >> a;
+
+  ASSERT_EQ(solve(f), a);
+}
+
+TEST(Solve, ShouldPassModeratelyComplexExample) {
+  ss in;
+  in << "4..XX" << std::endl;
+  in << ".H.H." << std::endl;
+  in << "...H." << std::endl;
+  in << ".2..2" << std::endl;
+  in << "....." << std::endl;
+  field f(5, 5);
+  in >> f;
+
+  in.str("");
+  in.clear();
+  in << "v...." << std::endl;
+  in << "v...<" << std::endl;
+  in << "v^..^" << std::endl;
+  in << "v^.^^" << std::endl;
+  in << ">>>^." << std::endl;
+  answer a(5, 5);
+  in >> a;
+
+  ASSERT_EQ(solve(f), a);
+}
+
+TEST(Solve, ShouldPassMoreComplicatedExample) {
+  ss in;
+  in << "3..H.2" << std::endl;
+  in << ".2..H." << std::endl;
+  in << "..H..H" << std::endl;
+  in << ".X.2.X" << std::endl;
+  in << "......" << std::endl;
+  in << "3..H.." << std::endl;
+  field f(6, 6);
+
+  in.str("");
+  in.clear();
+  in << ">>>..v" << std::endl;
+  in << ".>>>.v" << std::endl;
+  in << ">>...." << std::endl;
+  in << "^..v.." << std::endl;
+  in << "^..v.." << std::endl;
+  in << "^....." << std::endl;
+
+  answer a(6, 6);
+  in >> a;
+  ASSERT_EQ(solve(f), a);
 }

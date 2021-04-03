@@ -194,7 +194,10 @@ struct two_d_array {
 
 using field = two_d_array<cell>;
 
-field parse_field(std::istream& in, size_t width, size_t height) {
+field parse_field(std::istream& in) {
+  size_t width, height;
+  in >> width >> height;
+  in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
   field result(width, height);
   in >> result;
   return result;
@@ -263,5 +266,16 @@ struct answer_cell {
 };
 
 using answer = two_d_array<answer_cell>;
+
+answer solve(const field& field) {
+  answer result{field.width(), field.height()};
+  // for (ball_sorted_by_strikes ball : field) {
+  //   hs = available holes sorted by manathan distance find_shortest_path(
+  //       ball, nearest_holes);
+  //   if
+  //     not found backtrack
+  // }
+  return result;
+}
 
 #endif  // GUARD_DPSG_GOLF_WINAMAX_HPP
