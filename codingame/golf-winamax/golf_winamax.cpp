@@ -51,5 +51,32 @@ TEST(Cell, BasicEqualityResults) {
   ASSERT_NE(cell{empty}, water);
   ASSERT_NE(cell{ball{1}}, hole);
   ASSERT_NE(cell{ball{1}}, ball{2});
-  ASSERT_EQ(cell{water}, ball{1});
+  ASSERT_NE(cell{water}, ball{1});
+}
+
+TEST(AnswerCell, BasicEqualityResults) {
+  ASSERT_EQ(answer_cell{empty}, empty);
+  ASSERT_EQ(answer_cell{up}, up);
+  ASSERT_EQ(answer_cell{down}, down);
+  ASSERT_EQ(answer_cell{left}, left);
+  ASSERT_EQ(answer_cell{right}, right);
+
+  ASSERT_NE(answer_cell{left}, up);
+  ASSERT_NE(answer_cell{up}, down);
+  ASSERT_NE(answer_cell{right}, left);
+  ASSERT_NE(answer_cell{down}, right);
+  ASSERT_NE(answer_cell{empty}, up);
+  ASSERT_NE(answer_cell{right}, empty);
+}
+
+TEST(Answer, SerializesProperly) {
+  ss out;
+  answer a(3, 3);
+  a.at(0, 0) = down;
+  a.at(1, 0) = down;
+  a.at(2, 0) = right;
+  a.at(2, 2) = up;
+
+  out << a;
+  ASSERT_EQ(out.str(), "v..\nv..\n>.^\n");
 }
