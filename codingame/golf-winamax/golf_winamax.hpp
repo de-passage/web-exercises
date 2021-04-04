@@ -1,6 +1,9 @@
 #ifndef GUARD_DPSG_GOLF_WINAMAX_HPP
 #define GUARD_DPSG_GOLF_WINAMAX_HPP
+
 #include <algorithm>
+#include <cassert>
+#include <iostream>
 #include <memory>
 #include <vector>
 
@@ -8,12 +11,12 @@ struct water_t {
   friend std::ostream& operator<<(std::ostream& out, water_t) {
     return out << 'X';
   }
-} water;
+} constexpr water{};
 struct empty_t {
   friend std::ostream& operator<<(std::ostream& out, empty_t) {
     return out << '.';
   }
-} empty;
+} constexpr empty{};
 struct ball {
   int value;
   friend std::ostream& operator<<(std::ostream& out, ball b) {
@@ -24,7 +27,7 @@ struct hole_t {
   friend std::ostream& operator<<(std::ostream& out, hole_t) {
     return out << 'H';
   }
-} hole;
+} constexpr hole{};
 
 struct path {
   enum { up, down, left, right } value;
@@ -87,7 +90,7 @@ struct cell {
     return !(c == t);
   }
 
-  friend std::istream& operator>>(std::istream& in, cell& cell) noexcept {
+  friend std::istream& operator>>(std::istream& in, cell& cell) {
     char c;
     in >> c;
     if (c >= '0' && c <= '9') {
@@ -105,8 +108,7 @@ struct cell {
     return in;
   }
 
-  friend std::ostream& operator<<(std::ostream& out,
-                                  const cell& cell) noexcept {
+  friend std::ostream& operator<<(std::ostream& out, const cell& cell) {
     switch (cell._type) {
       case type::water:
         return out << water;
@@ -127,6 +129,10 @@ struct cell {
 template <class T>
 struct two_d_array {
   using value_type = T;
+  using const_value_type = std::add_const_t<value_type>;
+  using pointer = value_type*;
+  using const_pointer = const_value_type*;
+
   two_d_array(size_t width, size_t height)
       : _width{width},
         _height{height},
@@ -141,9 +147,171 @@ struct two_d_array {
   constexpr size_t width() const noexcept { return _width; }
 
  private:
-  struct iterator_impl {};
+  template <class V>
+  struct iterator_impl {
+    using value_type = V;
+    using pointer = value_type*;
+    using reference = value_type&;
+    using difference_type = std::ptrdiff_t;
+    using iterator_category = std::random_access_iterator_tag;
+
+    constexpr iterator_impl() noexcept = default;
+    constexpr iterator_impl(const iterator_impl&) noexcept = default;
+    constexpr iterator_impl(iterator_impl&&) noexcept = default;
+    constexpr iterator_impl& operator=(const iterator_impl&) noexcept = default;
+    constexpr iterator_impl& operator=(iterator_impl&&) noexcept = default;
+    ~iterator_impl() = default;
+
+   private:
+    constexpr iterator_impl(pointer ptr) noexcept : _ptr{ptr} {}
+    friend two_d_array;
+
+    pointer _ptr;
+
+   public:
+    constexpr iterator_impl& operator++() noexcept {
+      ++_ptr;
+      return *this;
+    }
+    constexpr iterator_impl operator++(int) noexcept {
+      return iterator_impl{_ptr++};
+    }
+
+    constexpr iterator_impl& operator--() noexcept {
+      --_ptr;
+      return *this;
+    }
+    constexpr iterator_impl operator--(int) noexcept {
+      return iterator_impl{_ptr--};
+    }
+
+    constexpr iterator_impl& operator+=(difference_type d) noexcept {
+      _ptr += d;
+      return *this;
+    }
+
+    constexpr iterator_impl& operator-=(difference_type d) noexcept {
+      _ptr -= d;
+      return *this;
+    }
+
+    constexpr reference operator*() const noexcept { return *_ptr; }
+    constexpr pointer operator->() const noexcept { return _ptr; }
+
+    friend constexpr bool operator==(iterator_impl left,
+                                     iterator_impl right) noexcept {
+      return left._ptr == right._ptr;
+    }
+
+    friend constexpr bool operator!=(iterator_impl left,
+                                     iterator_impl right) noexcept {
+      return left._ptr != right._ptr;
+    }
+  };
+
+  template <class V>
+  struct indexed_iterator_impl {
+    using value_type = V;
+    using pointer = value_type*;
+    using reference = value_type&;
+    using difference_type = std::ptrdiff_t;
+    using iterator_category = std::random_access_iterator_tag;
+
+    constexpr indexed_iterator_impl() noexcept = default;
+    constexpr indexed_iterator_impl(const indexed_iterator_impl&) noexcept =
+        default;
+    constexpr indexed_iterator_impl(indexed_iterator_impl&&) noexcept = default;
+    constexpr indexed_iterator_impl& operator=(
+        const indexed_iterator_impl&) noexcept = default;
+    constexpr indexed_iterator_impl& operator=(
+        indexed_iterator_impl&&) noexcept = default;
+    ~indexed_iterator_impl() = default;
+
+   private:
+    constexpr indexed_iterator_impl(pointer ptr,
+                                    size_t width,
+                                    difference_type offset = 0) noexcept
+        : _ptr{ptr}, _offset{offset}, _width{width} {}
+    friend two_d_array;
+
+    pointer _ptr{};
+    difference_type _offset{};
+    size_t _width{};
+
+   public:
+    constexpr indexed_iterator_impl& operator++() noexcept {
+      ++_offset;
+      return *this;
+    }
+    constexpr indexed_iterator_impl operator++(int) noexcept {
+      return indexed_iterator_impl{_ptr, _width, _offset++};
+    }
+
+    constexpr indexed_iterator_impl& operator--() noexcept {
+      --_offset;
+      return *this;
+    }
+    constexpr indexed_iterator_impl operator--(int) noexcept {
+      return indexed_iterator_impl{_ptr, _width, _offset--};
+    }
+
+    constexpr indexed_iterator_impl& operator+=(difference_type d) noexcept {
+      _offset += d;
+      return *this;
+    }
+
+    constexpr indexed_iterator_impl& operator-=(difference_type d) noexcept {
+      _offset -= d;
+      return *this;
+    }
+
+    constexpr reference operator*() const noexcept { return *(_ptr + _offset); }
+    constexpr pointer operator->() const noexcept { return _ptr + _offset; }
+
+    friend constexpr bool operator==(
+        const indexed_iterator_impl& left,
+        const indexed_iterator_impl& right) noexcept {
+      return left._ptr == right._ptr && left._offset == right._offset;
+    }
+
+    friend constexpr bool operator!=(
+        const indexed_iterator_impl& left,
+        const indexed_iterator_impl& right) noexcept {
+      return !(left == right);
+    }
+
+    constexpr size_t x() const noexcept { return _offset / _width; }
+    constexpr size_t y() const noexcept { return _offset % _width; }
+  };
 
  public:
+  using iterator = iterator_impl<value_type>;
+  using const_iterator = iterator_impl<std::add_const_t<value_type>>;
+
+  constexpr iterator begin() {
+    return iterator_impl<value_type>(static_cast<pointer>(_cells.get()));
+  }
+  constexpr const_iterator begin() const {
+    return iterator_impl<const_value_type>(_cells.get());
+  }
+  constexpr const_iterator cbegin() const {
+    return iterator_impl<const_value_type>(
+        static_cast<const_pointer>(_cells.get()));
+  }
+
+  constexpr iterator end() {
+    return iterator_impl<value_type>(
+        static_cast<pointer>(_cells.get() + (_height * _width)));
+  }
+  constexpr const_iterator end() const {
+    return iterator_impl<const_value_type>(
+        static_cast<const_pointer>(_cells.get() + (_height * _width)));
+  }
+  constexpr const_iterator cend() const {
+    return iterator_impl<const_value_type>(
+        static_cast<const_pointer>(_cells.get() + (_height * _width)));
+  }
+
   friend std::ostream& operator<<(std::ostream& out, const two_d_array& array) {
     for (size_t i = 0; i < array.height(); ++i) {
       for (size_t j = 0; j < array.width(); ++j) {
@@ -171,11 +339,11 @@ struct two_d_array {
     if (left._height != right._height || left._width != right._width)
       return false;
 
-    for (size_t i = 0; i < left._height; ++i) {
-      for (size_t j = 0; j < left._width; ++j) {
-        if (left.at(i, j) != right.at(i, j)) {
-          return false;
-        }
+    for (auto beg1 = left.begin(), beg2 = right.begin(), e1 = left.end();
+         beg1 != e1;
+         ++beg1, ++beg2) {
+      if (*beg1 != *beg2) {
+        return false;
       }
     }
     return true;
