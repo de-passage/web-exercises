@@ -78,10 +78,12 @@ struct cell {
 
   friend constexpr bool operator==(const cell& left,
                                    const cell& right) noexcept {
-    if (left._type != right._type)
+    if (left._type != right._type) {
       return false;
-    if (left._type == type::ball)
+    }
+    if (left._type == type::ball) {
       return left == right._ball;
+    }
     return true;
   }
 
@@ -280,36 +282,51 @@ struct two_d_array {
       return !(left == right);
     }
 
-    constexpr size_t x() const noexcept { return _offset / _width; }
-    constexpr size_t y() const noexcept { return _offset % _width; }
+    constexpr size_t x() const noexcept {
+      return static_cast<size_t>(_offset) / _width;
+    }
+    constexpr size_t y() const noexcept {
+      return static_cast<size_t>(_offset) % _width;
+    }
   };
 
  public:
   using iterator = iterator_impl<value_type>;
-  using const_iterator = iterator_impl<std::add_const_t<value_type>>;
+  using const_iterator = iterator_impl<const_value_type>;
+  using indexed_iterator = indexed_iterator_impl<value_type>;
+  using indexed_const_iterator = indexed_iterator_impl<const_value_type>;
 
   constexpr iterator begin() {
-    return iterator_impl<value_type>(static_cast<pointer>(_cells.get()));
+    return iterator(static_cast<pointer>(_cells.get()));
   }
   constexpr const_iterator begin() const {
-    return iterator_impl<const_value_type>(_cells.get());
+    return const_iterator(_cells.get());
   }
   constexpr const_iterator cbegin() const {
-    return iterator_impl<const_value_type>(
-        static_cast<const_pointer>(_cells.get()));
+    return const_iterator(static_cast<const_pointer>(_cells.get()));
   }
 
   constexpr iterator end() {
-    return iterator_impl<value_type>(
-        static_cast<pointer>(_cells.get() + (_height * _width)));
+    return iterator(static_cast<pointer>(_cells.get() + (_height * _width)));
   }
   constexpr const_iterator end() const {
-    return iterator_impl<const_value_type>(
+    return const_iterator(
         static_cast<const_pointer>(_cells.get() + (_height * _width)));
   }
   constexpr const_iterator cend() const {
-    return iterator_impl<const_value_type>(
+    return const_iterator(
         static_cast<const_pointer>(_cells.get() + (_height * _width)));
+  }
+
+  constexpr indexed_const_iterator indexed_begin() const {
+    return indexed_const_iterator{_cells.get(), _width};
+  }
+
+  constexpr indexed_const_iterator indexed_end() const {
+    return indexed_const_iterator{
+        _cells.get(),
+        _width,
+        static_cast<typename indexed_const_iterator::difference_type>(size())};
   }
 
   friend std::ostream& operator<<(std::ostream& out, const two_d_array& array) {
@@ -354,6 +371,8 @@ struct two_d_array {
     return !(left == right);
   }
 
+  size_t size() const noexcept { return _width * _height; }
+
  private:
   size_t _width;
   size_t _height;
@@ -373,7 +392,7 @@ field parse_field(std::istream& in) {
 
 struct answer_cell {
   enum class type { path, empty };
-  constexpr answer_cell() noexcept : _type{type::empty} {}
+  constexpr answer_cell() noexcept = default;
   constexpr answer_cell(path p) noexcept : _type{type::path}, _path{p} {}
   constexpr answer_cell(empty_t) noexcept : _type{type::empty} {}
 
@@ -429,20 +448,91 @@ struct answer_cell {
   }
 
  private:
-  type _type;
+  type _type{type::empty};
   path _path{};
 };
 
 using answer = two_d_array<answer_cell>;
 
+template <class T, class R = std::make_signed_t<T>>
+constexpr R to_signed(T in) noexcept {
+  return static_cast<R>(in);
+}
+
+template <class T, class R = std::make_unsigned_t<T>>
+constexpr R to_unsigned(T in) noexcept {
+  return static_cast<R>(in);
+}
+
+template <class T, class R = std::make_unsigned_t<T>>
+constexpr R distance(const T& left, const T& right) noexcept {
+  return to_unsigned(abs(to_signed(left) - to_signed(right)));
+}
+
+template <class T, class U>
+constexpr size_t manathan_distance(const T& left, const U& right) noexcept {
+  return distance(left.x, right.x) + distance(left.y, right.y);
+}
+
 answer solve(const field& field) {
   answer result{field.width(), field.height()};
-  // for (ball_sorted_by_strikes ball : field) {
-  //   hs = available holes sorted by manathan distance find_shortest_path(
-  //       ball, nearest_holes);
-  //   if
-  //     not found backtrack
-  // }
+  struct ball_data {
+    size_t x;
+    size_t y;
+    ball n;
+  };
+  struct hole_data {
+    size_t x;
+    size_t y;
+  };
+  std::vector<ball_data> balls;
+  std::vector<hole_data> holes;
+
+  for (auto it = field.indexed_begin(), end = field.indexed_end(); it != end;
+       ++it) {
+    switch (it->get_type()) {
+      case cell::type::ball:
+        balls.push_back(ball_data{it.x(), it.y(), it->ball_count()});
+        break;
+      case cell::type::hole:
+        holes.push_back(hole_data{it.x(), it.y()});
+        break;
+      default:
+        break;
+    }
+  }
+
+  std::sort(balls.begin(),
+            balls.end(),
+            [](const ball_data& left, const ball_data& right) {
+              return left.n.value < right.n.value;
+            });
+
+  for (auto ball_it = balls.begin(), ball_end = balls.end();
+       ball_it != ball_end;) {
+    auto& ball = *ball_it;
+    sort(holes.begin(),
+         holes.end(),
+         [&ball](const hole_data& left, const hole_data& right) {
+           return manathan_distance(left, ball) <
+                  manathan_distance(right, ball);
+         });
+
+    for (auto hole_it = holes.begin(), hole_end = holes.end();
+         hole_it != hole_end;) {
+      auto& hole = *hole_it;
+
+      // find all paths from ball to hole. if none try next hole
+      // if found, exit loop and remove hole from available holes
+    }
+    // if all holes tested and no solution, backtrack.
+    //     -> add back the hole used to the pool
+    //        then from the next hole from that one in the list, repeat the
+    //        process if all holes where exhausted, go back to the previous ball
+    //        and backtrack that one
+    // Else next ball
+  }
+
   return result;
 }
 
