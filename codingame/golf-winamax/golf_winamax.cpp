@@ -283,38 +283,46 @@ TEST(FindPaths, ShouldAvoidFallingIntoWater) {
 TEST(Intersects, ShouldReturnFalseIfNoIntersection) {
   // >>>>>v
   // .....v
-  // .....v
-  // ..^>.v
+  // ..>..v
+  // ..^..v
   // ..^<<<
-  path p = {make_pair(left, 5_b),
+  path p = {make_pair(right, 5_b),
             make_pair(down, 4_b),
-            make_pair(right, 3_b),
+            make_pair(left, 3_b),
             make_pair(up, 2_b),
-            make_pair(left, 1_b)};
+            make_pair(right, 1_b)};
   for (coordinates c : {coordinates{1, 0},
                         {1, 1},
                         {1, 2},
                         {1, 4},
+                        {2, 0},
+                        {2, 1},
+                        {2, 4},
                         {3, 0},
                         {3, 1},
+                        {3, 3},
                         {3, 4},
                         {4, 0},
-                        {4, 4}}) {
-    ASSERT_FALSE(intersects(c, p, coordinates{0, 0}));
+                        {4, 1}}) {
+    if (intersects(c, p, coordinates{0, 0})) {
+      std::cerr << "{" << x(c) << ", " << y(c) << "} should not intersect."
+                << endl;
+      FAIL();
+    }
   }
 }
 
 TEST(Intersects, ShouldReturnTrueIfIntersects) {
   // >>>>>v
   // .....v
-  // .....v
-  // ..^>.v
+  // ..>..v
+  // ..^..v
   // ..^<<<
-  path p = {make_pair(left, 5_b),
+  path p = {make_pair(right, 5_b),
             make_pair(down, 4_b),
-            make_pair(right, 3_b),
+            make_pair(left, 3_b),
             make_pair(up, 2_b),
-            make_pair(left, 1_b)};
+            make_pair(right, 1_b)};
   for (coordinates c : {coordinates{0, 0},
                         {0, 1},
                         {0, 2},
@@ -322,14 +330,18 @@ TEST(Intersects, ShouldReturnTrueIfIntersects) {
                         {0, 4},
                         {0, 5},
                         {1, 5},
+                        {2, 2},
+                        {2, 3},
                         {2, 5},
                         {3, 2},
-                        {3, 3},
                         {3, 5},
                         {4, 2},
                         {4, 3},
                         {4, 4},
                         {4, 5}}) {
-    ASSERT_TRUE(intersects(c, p, coordinates{0, 0}));
+    if (!intersects(c, p, coordinates{0, 0})) {
+      std::cerr << "{" << x(c) << ", " << y(c) << "} should intersect." << endl;
+      FAIL();
+    }
   }
 }

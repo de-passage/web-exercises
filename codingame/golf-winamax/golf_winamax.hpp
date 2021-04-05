@@ -522,19 +522,23 @@ constexpr size_t manathan_distance(const T& left, const U& right) noexcept {
 }
 
 using coordinates = std::pair<int, int>;
-using path = std::vector<std::pair<direction, ball>>;
+using path_point = std::pair<direction, ball>;
+using path = std::vector<path_point>;
 using path_list = std::vector<path>;
 using hole_list = std::vector<coordinates>;
+using coordinates_extractor = const int& (*)(const coordinates&);
+constexpr coordinates_extractor x = std::get<0>;
+constexpr coordinates_extractor y = std::get<1>;
 
 coordinates advance(const coordinates& coord, direction dir, int length) {
   switch (dir.value) {
-    case direction::up:
-      return coordinates{coord.first, coord.second - length};
-    case direction::down:
-      return coordinates{coord.first, coord.second + length};
     case direction::left:
-      return coordinates{coord.first - length, coord.second};
+      return coordinates{coord.first, coord.second - length};
     case direction::right:
+      return coordinates{coord.first, coord.second + length};
+    case direction::up:
+      return coordinates{coord.first - length, coord.second};
+    case direction::down:
       return coordinates{coord.first + length, coord.second};
   }
   return coordinates{};
@@ -545,8 +549,30 @@ decltype(auto) at(T& t, const coordinates& c) {
   return t.at(to_unsigned(c.first), to_unsigned(c.second));
 }
 
-bool intersects(const coordinates& c, const path& p, const coordinates& o) {
-  return true;
+bool intersects(const coordinates& c, const path& path, const coordinates& o) {
+  coordinates begin = o;
+  coordinates end;
+  for (const auto& p : path) {
+    end = advance(begin, p.first, p.second.value);
+    if (p.first == down && y(c) == y(end) && x(c) <= x(end) &&
+        x(c) >= x(begin)) {
+      return true;
+    }
+    if (p.first == up && y(c) == y(end) && x(c) >= x(end) && x(c) <= x(begin)) {
+      return true;
+    }
+    if (p.first == right && x(c) == x(end) && y(c) <= y(end) &&
+        y(c) >= y(begin)) {
+      return true;
+    }
+    if (p.first == left && x(c) == x(end) && y(c) >= y(end) &&
+        y(c) <= y(begin)) {
+      return true;
+    }
+
+    begin = end;
+  }
+  return false;
 }
 
 // Find every possible valid path from origin to destination with ball_data,
@@ -561,6 +587,8 @@ path_list find_path(const coordinates& origin,
                     answer& answ) {
   using point_to_explore = std::tuple<coordinates, ball, path>;
   std::stack<point_to_explore> to_explore;
+
+  // we start from the origin, with the original amount of strikes
   to_explore.push(point_to_explore(origin, ball_data, path{}));
   path_list result;
 
@@ -568,6 +596,8 @@ path_list find_path(const coordinates& origin,
     point_to_explore current = std::move(to_explore.top());
     to_explore.pop();
 
+    // for each point, we'll compute the 4 possible strikes and push the valid
+    // ones back onto the stack
     for (auto d : {up, down, left, right}) {
       coordinates c = std::get<0>(current);
       ball b = std::get<1>(current);
@@ -581,7 +611,7 @@ path_list find_path(const coordinates& origin,
             intersects(c, p, origin)) {
           // falling in here means this path is invalid, we can skip to the next
           // direction
-          goto skip_iteration;  // tribute to A. Alexandreiscu
+          goto continue_outer_loop;  // tribute to A. Alexandreiscu, sue me
         }
       }
 
@@ -596,8 +626,8 @@ path_list find_path(const coordinates& origin,
         p.push_back(std::make_pair(d, b));
         to_explore.push(point_to_explore(c, b - 1, p));
       }
-
-    skip_iteration:;
+      // otherwise, the strike was invalid and we can drop it
+    continue_outer_loop:;
     }
   }
 
