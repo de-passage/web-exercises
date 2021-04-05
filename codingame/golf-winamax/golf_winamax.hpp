@@ -26,6 +26,11 @@ struct ball {
     return out << (static_cast<char>(b.value) + '0');
   }
 
+  ball& operator--() {
+    --value;
+    return *this;
+  }
+
   friend constexpr ball operator-(ball b, int v) noexcept {
     return ball{b.value - v};
   }
@@ -521,6 +526,35 @@ using path = std::vector<std::pair<direction, ball>>;
 using path_list = std::vector<path>;
 using hole_list = std::vector<coordinates>;
 
+coordinates advance(const coordinates& coord, direction dir, int length) {
+  size_t l = static_cast<size_t>(length);
+  switch (dir.value) {
+    case direction::up:
+      return coordinates{coord.first, coord.second - l};
+    case direction::down:
+      return coordinates{coord.first, coord.second + l};
+    case direction::left:
+      return coordinates{coord.first - l, coord.second};
+    case direction::right:
+      return coordinates{coord.first + l, coord.second};
+  }
+  return coordinates{};
+}
+
+template <class T>
+decltype(auto) at(T& t, const coordinates& c) {
+  return t.at(c.first, c.second);
+}
+
+bool intersects(const coordinates& c, const path& p) {
+  return true;
+}
+
+// Find every possible valid path from origin to destination with ball_data,
+// taking both field and answ as constraints
+//
+// Exhaustive dfs through the graph of possibilities to accumulate the options
+// in a list of point + direction.
 path_list find_path(const coordinates& origin,
                     const coordinates& destination,
                     ball ball_data,
@@ -530,23 +564,43 @@ path_list find_path(const coordinates& origin,
   std::stack<point_to_explore> to_explore;
   to_explore.push(point_to_explore(origin, ball_data, path{}));
   path_list result;
-  path acc;
 
   while (!to_explore.empty()) {
-    point_to_explore current = to_explore.top();
+    point_to_explore current = std::move(to_explore.top());
     to_explore.pop();
 
     for (auto d : {up, down, left, right}) {
+      coordinates c = std::get<0>(current);
+      ball b = std::get<1>(current);
+      path& p = std::get<2>(current);
+      for (int i = 0; i < b.value; ++i) {
+        c = advance(c, d, 1);
+        if (c.first < 0 || c.first > field.height() || c.second < 0 ||
+            c.second > field.width() || at(answ, c) != empty ||
+            (c != destination && at(field, c) == hole) || intersects(c, p)) {
+          // falling in here means this path is invalid, we can skip to the next
+          // direction
+          goto skip_iteration;  // tribute to A. Alexandreiscu
+        }
+      }
+
+      // We reached destination, save this path as a solution
+      if (c == destination) {
+        p.push_back(std::make_pair(d, b));
+        result.push_back(p);
+      }
+      // The strike is valid
+      // This was not the last strike and we didn't fall into the water
+      else if (b != ball{1} && at(field, c) != water) {
+        p.push_back(std::make_pair(d, b));
+        to_explore.push(point_to_explore(c, b - 1, p));
+      }
+
+    skip_iteration:;
     }
   }
 
-  // for (direction in directions) {
-  //   add to visited list
-  //   if (direction crosses existing path || crosses hole) ->invalid
-  //   else if (direction == water) ->invalid
-  //   else if (direction == goal) ->found
-  // }
-  return {};
+  return result;
 }
 
 answer solve(const field& field) {
@@ -600,6 +654,7 @@ answer solve(const field& field) {
       // find all paths from ball to hole. if none try next hole
       // if found, exit loop and remove hole from available holes
       // need to consider all possible paths?
+      ++hole_it;
     }
     // if all holes tested and no solution, backtrack.
     //     -> add back the hole used to the pool
@@ -607,6 +662,7 @@ answer solve(const field& field) {
     //        process if all holes where exhausted, go back to the previous ball
     //        and backtrack that one
     // Else next ball
+    ++ball_it;
   }
 
   return result;
