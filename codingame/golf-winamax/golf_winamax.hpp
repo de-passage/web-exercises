@@ -23,7 +23,7 @@ struct empty_t {
 struct ball {
   int value;
   friend std::ostream& operator<<(std::ostream& out, ball b) {
-    return out << (static_cast<char>(b.value) + '0');
+    return out << b.value;
   }
 
   ball& operator--() {
@@ -604,8 +604,8 @@ path_list find_path(const coordinates& origin,
       path& p = std::get<2>(current);
       for (int i = 0; i < b.value; ++i) {
         c = advance(c, d, 1);
-        if (c.first < 0 || to_unsigned(c.first) > field.height() ||
-            c.second < 0 || to_unsigned(c.second) > field.width() ||
+        if (c.first < 0 || to_unsigned(c.first) >= field.height() ||
+            c.second < 0 || to_unsigned(c.second) >= field.width() ||
             at(answ, c) != empty ||
             (c != destination && at(field, c) == hole) ||
             intersects(c, p, origin)) {
@@ -617,14 +617,16 @@ path_list find_path(const coordinates& origin,
 
       // We reached destination, save this path as a solution
       if (c == destination) {
-        p.push_back(std::make_pair(d, b));
-        result.push_back(p);
+        auto copy = p;
+        copy.push_back(std::make_pair(d, b));
+        result.push_back(std::move(copy));
       }
       // The strike is valid
       // This was not the last strike and we didn't fall into the water
       else if (b != ball{1} && at(field, c) != water) {
-        p.push_back(std::make_pair(d, b));
-        to_explore.push(point_to_explore(c, b - 1, p));
+        auto copy = p;
+        copy.push_back(std::make_pair(d, b));
+        to_explore.push(point_to_explore(c, b - 1, std::move(copy)));
       }
       // otherwise, the strike was invalid and we can drop it
     continue_outer_loop:;

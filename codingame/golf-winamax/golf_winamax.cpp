@@ -228,8 +228,12 @@ void check_solutions(path_solutions& solutions, const path_list& l) {
   for (auto& s : l) {
     auto it = solutions.find(s);
     if (it == solutions.end()) {
-      std::cerr << "Expected solution not found: " << std::endl;
+      std::cerr << "Invalid solution returned: " << std::endl;
       show_solution(s);
+      for (auto& s2 : solutions) {
+        std::cerr << "Potential solution: ";
+        show_solution(s2);
+      }
       FAIL();
     }
     else {
@@ -245,7 +249,8 @@ void check_solutions(path_solutions& solutions, const path_list& l) {
 }
 
 TEST(FindPaths, ShouldFindAllPathsInSimpleCase) {
-  ss in("4 4\n");
+  ss in;
+  in << "4 4" << endl;
   in << "3..." << endl;
   in << "...." << endl;
   in << "..H." << endl;
@@ -259,13 +264,14 @@ TEST(FindPaths, ShouldFindAllPathsInSimpleCase) {
   solutions.emplace(
       path{make_pair(right, 3_b), make_pair(down, 2_b), make_pair(left, 1_b)});
   solutions.emplace(
-      path{make_pair(down, 3_b), make_pair(left, 2_b), make_pair(up, 1_b)});
+      path{make_pair(down, 3_b), make_pair(right, 2_b), make_pair(up, 1_b)});
 
   check_solutions(solutions, l);
 }
 
 TEST(FindPaths, ShouldAvoidFallingIntoWater) {
-  ss in("4 4\n");
+  ss in;
+  in << "4 4" << endl;
   in << "3..X" << endl;
   in << "...." << endl;
   in << "..H." << endl;
@@ -276,7 +282,7 @@ TEST(FindPaths, ShouldAvoidFallingIntoWater) {
   ASSERT_EQ(l.size(), 1);
 
   path_solutions solutions = {
-      path{make_pair(down, 3_b), make_pair(left, 2_b), make_pair(up, 1_b)}};
+      path{make_pair(down, 3_b), make_pair(right, 2_b), make_pair(up, 1_b)}};
   check_solutions(solutions, l);
 }
 
