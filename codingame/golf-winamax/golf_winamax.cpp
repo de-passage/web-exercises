@@ -152,7 +152,7 @@ TEST(Solve, ShouldPassExample) {
   auto f = parse_field(input);
   input.str("v..\nv..\n>.^");
   input.clear();
-  answer a(2, 1);
+  answer a(3, 3);
   input >> a;
 
   ASSERT_EQ(solve(f), a);
@@ -251,7 +251,7 @@ TEST(FindPaths, ShouldFindAllPathsInSimpleCase) {
   in << "..H." << endl;
   in << "...." << endl;
   auto f = parse_field(in);
-  answer a(3, 3);
+  answer a(4, 4);
   auto l = find_path({0, 0}, {2, 2}, 3_b, f, a);
   ASSERT_EQ(l.size(), 2);
 
@@ -262,4 +262,74 @@ TEST(FindPaths, ShouldFindAllPathsInSimpleCase) {
       path{make_pair(down, 3_b), make_pair(left, 2_b), make_pair(up, 1_b)});
 
   check_solutions(solutions, l);
+}
+
+TEST(FindPaths, ShouldAvoidFallingIntoWater) {
+  ss in("4 4\n");
+  in << "3..X" << endl;
+  in << "...." << endl;
+  in << "..H." << endl;
+  in << "...." << endl;
+  auto f = parse_field(in);
+  answer a(4, 4);
+  auto l = find_path({0, 0}, {2, 2}, 3_b, f, a);
+  ASSERT_EQ(l.size(), 1);
+
+  path_solutions solutions = {
+      path{make_pair(down, 3_b), make_pair(left, 2_b), make_pair(up, 1_b)}};
+  check_solutions(solutions, l);
+}
+
+TEST(Intersects, ShouldReturnFalseIfNoIntersection) {
+  // >>>>>v
+  // .....v
+  // .....v
+  // ..^>.v
+  // ..^<<<
+  path p = {make_pair(left, 5_b),
+            make_pair(down, 4_b),
+            make_pair(right, 3_b),
+            make_pair(up, 2_b),
+            make_pair(left, 1_b)};
+  for (coordinates c : {coordinates{1, 0},
+                        {1, 1},
+                        {1, 2},
+                        {1, 4},
+                        {3, 0},
+                        {3, 1},
+                        {3, 4},
+                        {4, 0},
+                        {4, 4}}) {
+    ASSERT_FALSE(intersects(c, p, coordinates{0, 0}));
+  }
+}
+
+TEST(Intersects, ShouldReturnTrueIfIntersects) {
+  // >>>>>v
+  // .....v
+  // .....v
+  // ..^>.v
+  // ..^<<<
+  path p = {make_pair(left, 5_b),
+            make_pair(down, 4_b),
+            make_pair(right, 3_b),
+            make_pair(up, 2_b),
+            make_pair(left, 1_b)};
+  for (coordinates c : {coordinates{0, 0},
+                        {0, 1},
+                        {0, 2},
+                        {0, 3},
+                        {0, 4},
+                        {0, 5},
+                        {1, 5},
+                        {2, 5},
+                        {3, 2},
+                        {3, 3},
+                        {3, 5},
+                        {4, 2},
+                        {4, 3},
+                        {4, 4},
+                        {4, 5}}) {
+    ASSERT_TRUE(intersects(c, p, coordinates{0, 0}));
+  }
 }

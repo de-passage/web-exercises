@@ -521,32 +521,31 @@ constexpr size_t manathan_distance(const T& left, const U& right) noexcept {
   return distance(left.x, right.x) + distance(left.y, right.y);
 }
 
-using coordinates = std::pair<size_t, size_t>;
+using coordinates = std::pair<int, int>;
 using path = std::vector<std::pair<direction, ball>>;
 using path_list = std::vector<path>;
 using hole_list = std::vector<coordinates>;
 
 coordinates advance(const coordinates& coord, direction dir, int length) {
-  size_t l = static_cast<size_t>(length);
   switch (dir.value) {
     case direction::up:
-      return coordinates{coord.first, coord.second - l};
+      return coordinates{coord.first, coord.second - length};
     case direction::down:
-      return coordinates{coord.first, coord.second + l};
+      return coordinates{coord.first, coord.second + length};
     case direction::left:
-      return coordinates{coord.first - l, coord.second};
+      return coordinates{coord.first - length, coord.second};
     case direction::right:
-      return coordinates{coord.first + l, coord.second};
+      return coordinates{coord.first + length, coord.second};
   }
   return coordinates{};
 }
 
 template <class T>
 decltype(auto) at(T& t, const coordinates& c) {
-  return t.at(c.first, c.second);
+  return t.at(to_unsigned(c.first), to_unsigned(c.second));
 }
 
-bool intersects(const coordinates& c, const path& p) {
+bool intersects(const coordinates& c, const path& p, const coordinates& o) {
   return true;
 }
 
@@ -575,9 +574,11 @@ path_list find_path(const coordinates& origin,
       path& p = std::get<2>(current);
       for (int i = 0; i < b.value; ++i) {
         c = advance(c, d, 1);
-        if (c.first < 0 || c.first > field.height() || c.second < 0 ||
-            c.second > field.width() || at(answ, c) != empty ||
-            (c != destination && at(field, c) == hole) || intersects(c, p)) {
+        if (c.first < 0 || to_unsigned(c.first) > field.height() ||
+            c.second < 0 || to_unsigned(c.second) > field.width() ||
+            at(answ, c) != empty ||
+            (c != destination && at(field, c) == hole) ||
+            intersects(c, p, origin)) {
           // falling in here means this path is invalid, we can skip to the next
           // direction
           goto skip_iteration;  // tribute to A. Alexandreiscu
