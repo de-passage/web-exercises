@@ -5,6 +5,9 @@
 #include <cassert>
 #include <iostream>
 #include <memory>
+#include <stack>
+#include <tuple>
+#include <unordered_set>
 #include <vector>
 
 struct water_t {
@@ -22,6 +25,20 @@ struct ball {
   friend std::ostream& operator<<(std::ostream& out, ball b) {
     return out << (static_cast<char>(b.value) + '0');
   }
+
+  friend constexpr ball operator-(ball b, int v) noexcept {
+    return ball{b.value - v};
+  }
+
+  friend constexpr bool operator==(ball l, ball r) noexcept {
+    return l.value == r.value;
+  }
+  friend constexpr bool operator!=(ball l, ball r) noexcept {
+    return l.value != r.value;
+  }
+  friend constexpr bool operator<(ball l, ball r) noexcept {
+    return l.value < r.value;
+  }
 };
 struct hole_t {
   friend std::ostream& operator<<(std::ostream& out, hole_t) {
@@ -29,9 +46,9 @@ struct hole_t {
   }
 } constexpr hole{};
 
-struct path {
+struct direction {
   enum { up, down, left, right } value;
-  friend std::ostream& operator<<(std::ostream& out, path p) {
+  friend std::ostream& operator<<(std::ostream& out, direction p) {
     switch (p.value) {
       case up:
         return out << '^';
@@ -43,8 +60,30 @@ struct path {
         return out << '<';
     }
   }
-} constexpr up{path::up}, down{path::down}, left{path::left},
-    right{path::right};
+  friend constexpr bool operator==(direction l, direction r) noexcept {
+    return l.value == r.value;
+  }
+  friend constexpr bool operator<(direction l, direction r) noexcept {
+    return l.value < r.value;
+  }
+  friend constexpr bool operator!=(direction l, direction r) noexcept {
+    return l.value != r.value;
+  }
+} constexpr up{direction::up}, down{direction::down}, left{direction::left},
+    right{direction::right};
+
+namespace std {
+template <>
+class hash<::direction> {
+  size_t operator()(::direction d) const noexcept {
+    return hash<int>{}(d.value);
+  }
+};
+template <>
+class hash<::ball> {
+  size_t operator()(::ball b) const noexcept { return hash<int>{}(b.value); }
+};
+}  // namespace std
 
 struct cell {
   enum class type { empty, water, ball, hole };
@@ -391,24 +430,27 @@ field parse_field(std::istream& in) {
 }
 
 struct answer_cell {
-  enum class type { path, empty };
+  enum class type { direction, empty };
   constexpr answer_cell() noexcept = default;
-  constexpr answer_cell(path p) noexcept : _type{type::path}, _path{p} {}
+  constexpr answer_cell(direction p) noexcept
+      : _type{type::direction}, _direction{p} {}
   constexpr answer_cell(empty_t) noexcept : _type{type::empty} {}
 
   friend constexpr bool operator==(answer_cell left, empty_t) noexcept {
     return left._type == type::empty;
   }
 
-  friend constexpr bool operator==(answer_cell left, path right) noexcept {
-    return left._type == type::path && left._path.value == right.value;
+  friend constexpr bool operator==(answer_cell left, direction right) noexcept {
+    return left._type == type::direction &&
+           left._direction.value == right.value;
   }
 
   friend constexpr bool operator==(answer_cell left,
                                    answer_cell right) noexcept {
     return left._type == right._type &&
-           (left._type == type::path ? left._path.value == right._path.value
-                                     : true);
+           (left._type == type::direction
+                ? left._direction.value == right._direction.value
+                : true);
   }
 
   template <class T>
@@ -421,7 +463,7 @@ struct answer_cell {
       out << empty;
     }
     else {
-      out << cell._path;
+      out << cell._direction;
     }
     return out;
   }
@@ -449,7 +491,7 @@ struct answer_cell {
 
  private:
   type _type{type::empty};
-  path _path{};
+  direction _direction{};
 };
 
 using answer = two_d_array<answer_cell>;
@@ -472,6 +514,39 @@ constexpr R distance(const T& left, const T& right) noexcept {
 template <class T, class U>
 constexpr size_t manathan_distance(const T& left, const U& right) noexcept {
   return distance(left.x, right.x) + distance(left.y, right.y);
+}
+
+using coordinates = std::pair<size_t, size_t>;
+using path = std::vector<std::pair<direction, ball>>;
+using path_list = std::vector<path>;
+using hole_list = std::vector<coordinates>;
+
+path_list find_path(const coordinates& origin,
+                    const coordinates& destination,
+                    ball ball_data,
+                    const field& field,
+                    answer& answ) {
+  using point_to_explore = std::tuple<coordinates, ball, path>;
+  std::stack<point_to_explore> to_explore;
+  to_explore.push(point_to_explore(origin, ball_data, path{}));
+  path_list result;
+  path acc;
+
+  while (!to_explore.empty()) {
+    point_to_explore current = to_explore.top();
+    to_explore.pop();
+
+    for (auto d : {up, down, left, right}) {
+    }
+  }
+
+  // for (direction in directions) {
+  //   add to visited list
+  //   if (direction crosses existing path || crosses hole) ->invalid
+  //   else if (direction == water) ->invalid
+  //   else if (direction == goal) ->found
+  // }
+  return {};
 }
 
 answer solve(const field& field) {
@@ -524,6 +599,7 @@ answer solve(const field& field) {
 
       // find all paths from ball to hole. if none try next hole
       // if found, exit loop and remove hole from available holes
+      // need to consider all possible paths?
     }
     // if all holes tested and no solution, backtrack.
     //     -> add back the hole used to the pool

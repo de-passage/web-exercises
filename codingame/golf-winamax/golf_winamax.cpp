@@ -1,9 +1,24 @@
 #include <gtest/gtest.h>
 #include "./golf_winamax.hpp"
 
+#include <set>
 #include <sstream>
 
 using ss = std::stringstream;
+using std::endl;
+using std::make_pair;
+using std::unordered_set;
+
+constexpr ball operator""_b(unsigned long long c) {
+  return ball{static_cast<int>(c)};
+}
+
+static_assert(0_b == ball{0},
+              "Should produce balls with the right amount of strikes left");
+static_assert(1_b == ball{1},
+              "Should produce balls with the right amount of strikes left");
+static_assert(9_b == ball{9},
+              "Should produce balls with the right amount of strikes left");
 
 TEST(Field, ShouldParseTrivialExample) {
   ss input("2 1\n1H");
@@ -15,9 +30,9 @@ TEST(Field, ShouldParseTrivialExample) {
 
 TEST(Field, ShouldParseMoreComplicatedExample) {
   ss input;
-  input << "2.X" << std::endl;
-  input << "..H" << std::endl;
-  input << ".H1" << std::endl;
+  input << "2.X" << endl;
+  input << "..H" << endl;
+  input << ".H1" << endl;
 
   field f(3, 3);
   input >> f;
@@ -84,9 +99,9 @@ TEST(Answer, SerializesProperly) {
 
 TEST(Answer, EqualiyShouldBehaveProperly) {
   ss in;
-  in << "v.." << std::endl;
-  in << "v.." << std::endl;
-  in << ">.^" << std::endl;
+  in << "v.." << endl;
+  in << "v.." << endl;
+  in << ">.^" << endl;
   answer a1(3, 3), a2(3, 3);
 
   in >> a1;
@@ -103,9 +118,9 @@ TEST(Answer, EqualiyShouldBehaveProperly) {
 
 TEST(Field, EqualityShouldBehaveProperly) {
   ss input;
-  input << "2.X" << std::endl;
-  input << "..H" << std::endl;
-  input << ".H1" << std::endl;
+  input << "2.X" << endl;
+  input << "..H" << endl;
+  input << ".H1" << endl;
   field f1(3, 3);
   input >> f1;
   field f2(3, 3);
@@ -145,21 +160,21 @@ TEST(Solve, ShouldPassExample) {
 
 TEST(Solve, ShouldPassModeratelyComplexExample) {
   ss in;
-  in << "4..XX" << std::endl;
-  in << ".H.H." << std::endl;
-  in << "...H." << std::endl;
-  in << ".2..2" << std::endl;
-  in << "....." << std::endl;
+  in << "4..XX" << endl;
+  in << ".H.H." << endl;
+  in << "...H." << endl;
+  in << ".2..2" << endl;
+  in << "....." << endl;
   field f(5, 5);
   in >> f;
 
   in.str("");
   in.clear();
-  in << "v...." << std::endl;
-  in << "v...<" << std::endl;
-  in << "v^..^" << std::endl;
-  in << "v^.^^" << std::endl;
-  in << ">>>^." << std::endl;
+  in << "v...." << endl;
+  in << "v...<" << endl;
+  in << "v^..^" << endl;
+  in << "v^.^^" << endl;
+  in << ">>>^." << endl;
   answer a(5, 5);
   in >> a;
 
@@ -168,24 +183,83 @@ TEST(Solve, ShouldPassModeratelyComplexExample) {
 
 TEST(Solve, ShouldPassMoreComplicatedExample) {
   ss in;
-  in << "3..H.2" << std::endl;
-  in << ".2..H." << std::endl;
-  in << "..H..H" << std::endl;
-  in << ".X.2.X" << std::endl;
-  in << "......" << std::endl;
-  in << "3..H.." << std::endl;
+  in << "3..H.2" << endl;
+  in << ".2..H." << endl;
+  in << "..H..H" << endl;
+  in << ".X.2.X" << endl;
+  in << "......" << endl;
+  in << "3..H.." << endl;
   field f(6, 6);
 
   in.str("");
   in.clear();
-  in << ">>>..v" << std::endl;
-  in << ".>>>.v" << std::endl;
-  in << ">>...." << std::endl;
-  in << "^..v.." << std::endl;
-  in << "^..v.." << std::endl;
-  in << "^....." << std::endl;
+  in << ">>>..v" << endl;
+  in << ".>>>.v" << endl;
+  in << ">>...." << endl;
+  in << "^..v.." << endl;
+  in << "^..v.." << endl;
+  in << "^....." << endl;
 
   answer a(6, 6);
   in >> a;
   ASSERT_EQ(solve(f), a);
+}
+
+TEST(FindPaths, ShouldFindPathInTrivialCase) {
+  ss in("2 1\nH1");
+  auto f = parse_field(in);
+  answer a(2, 1);
+  auto l = find_path({0, 1}, {0, 0}, 1_b, f, a);
+  ASSERT_EQ(l.size(), 1);
+  path p = l.front();
+  ASSERT_EQ(p.size(), 1);
+  ASSERT_EQ(p, path{make_pair(left, 1_b)});
+}
+
+using path_solutions = std::set<path>;
+
+void show_solution(const path& s) {
+  for (auto& p : s) {
+    std::cerr << "{" << p.first << ", " << p.second << "}, ";
+  }
+  std::cerr << endl;
+}
+void check_solutions(path_solutions& solutions, const path_list& l) {
+  for (auto& s : l) {
+    auto it = solutions.find(s);
+    if (it == solutions.end()) {
+      std::cerr << "Expected solution not found: " << std::endl;
+      show_solution(s);
+      FAIL();
+    }
+    else {
+      solutions.erase(it);
+    }
+  }
+  if (solutions.size() > 0) {
+    std::cerr << "Unexpected solutions found: " << std::endl;
+    for (auto& p : solutions) {
+      show_solution(p);
+    }
+  }
+}
+
+TEST(FindPaths, ShouldFindAllPathsInSimpleCase) {
+  ss in("4 4\n");
+  in << "3..." << endl;
+  in << "...." << endl;
+  in << "..H." << endl;
+  in << "...." << endl;
+  auto f = parse_field(in);
+  answer a(3, 3);
+  auto l = find_path({0, 0}, {2, 2}, 3_b, f, a);
+  ASSERT_EQ(l.size(), 2);
+
+  path_solutions solutions;
+  solutions.emplace(
+      path{make_pair(right, 3_b), make_pair(down, 2_b), make_pair(left, 1_b)});
+  solutions.emplace(
+      path{make_pair(down, 3_b), make_pair(left, 2_b), make_pair(up, 1_b)});
+
+  check_solutions(solutions, l);
 }
