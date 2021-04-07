@@ -629,8 +629,8 @@ path_list find_path(const coordinates& origin,
             at(answ, c) != empty ||
             (c != destination && at(field, c) == hole) ||
             intersects(c, p, origin)) {
-          // falling in here means this path is invalid, we can skip to the next
-          // direction
+          // falling in here means this path is invalid (out of bound, hole or
+          // already traversed), we can skip to the next direction
           goto continue_outer_loop;  // tribute to A. Alexandreiscu, sue me
         }
       }
@@ -655,6 +655,25 @@ path_list find_path(const coordinates& origin,
 
   return result;
 }
+
+template <class F>
+void write_path(answer& answer,
+                const path& p,
+                coordinates origin,
+                F&& make_val) {
+  for (const auto& s : p) {
+    for (int i = 0; i < s.second.value; ++i) {
+      auto r = advance(origin, s.first, i);
+      answer.at(to_unsigned(x(r)), to_unsigned(y(r))) = make_val(s.first);
+    }
+    origin = advance(origin, s.first, s.second.value);
+  }
+}
+
+const auto write_path_direction = [](const direction& d) -> answer_cell {
+  return d;
+};
+const auto write_empty = [](const direction&) -> answer_cell { return empty; };
 
 answer solve(const field& field) {
   answer result{field.width(), field.height()};
@@ -704,8 +723,8 @@ answer solve(const field& field) {
                   manathan_distance(right, ball.coords);
          });
 
-    for (auto hole_it = holes.begin(), hole_end = holes.end();
-         hole_it != hole_end;) {
+    auto hole_it = holes.begin();
+    for (auto hole_end = holes.end(); hole_it != hole_end;) {
       auto& hole = *hole_it;
 
       // find all paths from ball to hole.
@@ -720,12 +739,19 @@ answer solve(const field& field) {
       }
       auto& list = cache_it->second;
 
-      // if none try next hole
-      if (list.empty())
-        continue;
+      if (!list.empty()) {
+        // write the best path to the answer
+        write_path(result, list.front(), ball.coords, write_path_direction);
+        break;
+      }
+      // if none just try next hole
+
       // if found, exit loop and remove hole from available holes
       // need to consider all possible paths?
       ++hole_it;
+    }
+
+    if (hole_it != holes.end()) {
     }
     // if all holes tested and no solution, backtrack.
     //     -> add back the hole used to the pool

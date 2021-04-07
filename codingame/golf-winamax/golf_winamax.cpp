@@ -351,3 +351,55 @@ TEST(Intersects, ShouldReturnTrueIfIntersects) {
     }
   }
 }
+
+TEST(WritePath, ShouldWritePathCorrectlyWithWritingFunction) {
+  path p = {make_pair(right, 5_b),
+            make_pair(down, 4_b),
+            make_pair(left, 3_b),
+            make_pair(up, 2_b),
+            make_pair(right, 1_b)};
+  answer a{6, 5};
+
+  write_path(a, p, {0, 0}, write_path_direction);
+
+  ss in;
+  in << ">>>>>v" << endl;
+  in << ".....v" << endl;
+  in << "..>..v" << endl;
+  in << "..^..v" << endl;
+  in << "..^<<<" << endl;
+
+  ss answ;
+  answ << a;
+
+  ASSERT_EQ(in.str(), answ.str());
+}
+
+TEST(WritePath, ShouldOnlyOverwriteGivenPathWithErasingFunction) {
+  path p = {make_pair(right, 5_b),
+            make_pair(down, 4_b),
+            make_pair(left, 3_b),
+            make_pair(up, 2_b),
+            make_pair(right, 1_b)};
+  answer a{6, 5};
+  ss in;
+  in << ">>>>>v" << endl;
+  in << ".>>v.v" << endl;
+  in << ".^>v.v" << endl;
+  in << ".^^v.v" << endl;
+  in << ".^^<<<" << endl;
+  in >> a;
+
+  answer expected{6, 5};
+  ss exp;
+  exp << "......" << endl;
+  exp << ".>>v.." << endl;
+  exp << ".^.v.." << endl;
+  exp << ".^.v.." << endl;
+  exp << ".^...." << endl;
+  exp >> expected;
+
+  write_path(a, p, {0, 0}, write_empty);
+
+  ASSERT_EQ(a, expected);
+}
