@@ -7,6 +7,7 @@
 #include <memory>
 #include <stack>
 #include <tuple>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -501,6 +502,15 @@ struct answer_cell {
 
 using answer = two_d_array<answer_cell>;
 
+using coordinates = std::pair<int, int>;
+using path_point = std::pair<direction, ball>;
+using path = std::vector<path_point>;
+using path_list = std::vector<path>;
+using hole_list = std::vector<coordinates>;
+using coordinates_extractor = const int& (*)(const coordinates&);
+constexpr coordinates_extractor x = std::get<0>;
+constexpr coordinates_extractor y = std::get<1>;
+
 template <class T, class R = std::make_signed_t<T>>
 constexpr R to_signed(T in) noexcept {
   return static_cast<R>(in);
@@ -518,17 +528,8 @@ constexpr R distance(const T& left, const T& right) noexcept {
 
 template <class T, class U>
 constexpr size_t manathan_distance(const T& left, const U& right) noexcept {
-  return distance(left.x, right.x) + distance(left.y, right.y);
+  return distance(x(left), x(right)) + distance(y(left), y(right));
 }
-
-using coordinates = std::pair<int, int>;
-using path_point = std::pair<direction, ball>;
-using path = std::vector<path_point>;
-using path_list = std::vector<path>;
-using hole_list = std::vector<coordinates>;
-using coordinates_extractor = const int& (*)(const coordinates&);
-constexpr coordinates_extractor x = std::get<0>;
-constexpr coordinates_extractor y = std::get<1>;
 
 coordinates advance(const coordinates& coord, direction dir, int length) {
   switch (dir.value) {
@@ -548,6 +549,25 @@ template <class T>
 decltype(auto) at(T& t, const coordinates& c) {
   return t.at(to_unsigned(c.first), to_unsigned(c.second));
 }
+template <class T>
+struct hash : std::hash<T> {};
+
+// Adapted from boost
+template <typename T>
+inline void hash_combine(std::size_t& seed, const T& val) {
+  hash<T> hasher;
+  seed ^= hasher(val) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
+template <typename S, typename T>
+struct hash<std::pair<S, T>> {
+  inline size_t operator()(const std::pair<S, T>& val) const {
+    size_t seed = 0;
+    hash_combine(seed, val.first);
+    hash_combine(seed, val.second);
+    return seed;
+  }
+};
 
 bool intersects(const coordinates& c, const path& path, const coordinates& o) {
   coordinates begin = o;
@@ -639,31 +659,33 @@ path_list find_path(const coordinates& origin,
 answer solve(const field& field) {
   answer result{field.width(), field.height()};
   struct ball_data {
-    size_t x;
-    size_t y;
+    coordinates coords;
     ball n;
   };
-  struct hole_data {
-    size_t x;
-    size_t y;
-  };
+  using hole_data = coordinates;
+  using cache_key = std::pair<coordinates, coordinates>;
+  using cache = std::unordered_map<cache_key, path_list, hash<cache_key>>;
   std::vector<ball_data> balls;
   std::vector<hole_data> holes;
+  cache known_path;
 
   for (auto it = field.indexed_begin(), end = field.indexed_end(); it != end;
        ++it) {
     switch (it->get_type()) {
       case cell::type::ball:
-        balls.push_back(ball_data{it.x(), it.y(), it->ball_count()});
+        balls.push_back(
+            ball_data{std::make_pair(it.x(), it.y()), it->ball_count()});
         break;
       case cell::type::hole:
-        holes.push_back(hole_data{it.x(), it.y()});
+        holes.emplace_back(it.x(), it.y());
         break;
       default:
         break;
     }
   }
 
+  // We start with the balls with the less available strikes as they should be
+  // the most constraining
   std::sort(balls.begin(),
             balls.end(),
             [](const ball_data& left, const ball_data& right) {
@@ -673,18 +695,34 @@ answer solve(const field& field) {
   for (auto ball_it = balls.begin(), ball_end = balls.end();
        ball_it != ball_end;) {
     auto& ball = *ball_it;
+    // We start checking for solutions with the closest holes, that we're more
+    // likely to reach
     sort(holes.begin(),
          holes.end(),
          [&ball](const hole_data& left, const hole_data& right) {
-           return manathan_distance(left, ball) <
-                  manathan_distance(right, ball);
+           return manathan_distance(left, ball.coords) <
+                  manathan_distance(right, ball.coords);
          });
 
     for (auto hole_it = holes.begin(), hole_end = holes.end();
          hole_it != hole_end;) {
       auto& hole = *hole_it;
 
-      // find all paths from ball to hole. if none try next hole
+      // find all paths from ball to hole.
+      auto key = std::make_pair(ball.coords, hole);
+      auto cache_it = known_path.find(key);
+      if (cache_it == known_path.end()) {
+        cache_it =
+            known_path
+                .emplace(key,
+                         find_path(ball.coords, hole, ball.n, field, result))
+                .first;
+      }
+      auto& list = cache_it->second;
+
+      // if none try next hole
+      if (list.empty())
+        continue;
       // if found, exit loop and remove hole from available holes
       // need to consider all possible paths?
       ++hole_it;
