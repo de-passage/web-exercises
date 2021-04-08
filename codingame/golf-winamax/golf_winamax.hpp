@@ -185,6 +185,25 @@ struct two_d_array {
         _height{height},
         _cells(std::make_unique<value_type[]>(width * height)) {}
 
+  two_d_array(const two_d_array& other)
+      : _width{other._width},
+        _height{other._height},
+        _cells(std::make_unique<value_type[]>(_width * _height)) {
+    auto it = begin();
+    auto ot = other.begin();
+    for (; it != end(); ++it, ++ot) {
+      *it = *ot;
+    }
+  }
+
+  two_d_array(two_d_array&&) noexcept = default;
+  two_d_array& operator=(two_d_array&&) = default;
+  two_d_array& operator=(const two_d_array& other) {
+    two_d_array(other).swap(*this);
+    return *this;
+  }
+  ~two_d_array() = default;
+
   value_type& at(size_t x, size_t y) noexcept { return _cells[x * _width + y]; }
   const value_type& at(size_t x, size_t y) const noexcept {
     return const_cast<two_d_array*>(this)->at(x, y);
@@ -194,6 +213,12 @@ struct two_d_array {
   constexpr size_t width() const noexcept { return _width; }
 
  private:
+  void swap(two_d_array& other) {
+    using std::swap;
+    swap(_cells, other._cells);
+    swap(_width, other._width);
+    swap(_height, other._height);
+  }
   template <class V>
   struct iterator_impl {
     using value_type = V;
@@ -616,6 +641,23 @@ void write_path(answer& answer,
   }
 }
 
+bool write_path(answer& answer, const path& p, coordinates origin) {
+  for (const auto& s : p) {
+    for (int i = 0; i < s.second.value; ++i) {
+      auto r = advance(origin, s.first, i);
+      auto& c = answer.at(to_unsigned(x(r)), to_unsigned(y(r)));
+      if (c == empty) {
+        c = s.first;
+      }
+      else {
+        return false;
+      }
+    }
+    origin = advance(origin, s.first, s.second.value);
+  }
+  return true;
+}
+
 const auto write_path_direction = [](const direction& d) -> answer_cell {
   return d;
 };
@@ -667,10 +709,84 @@ void fill_data(ball_data_list& balls,
 }
 
 // Find every possible valid path from origin to destination with ball_data,
-// taking both field and answ as constraints
+// taking field as a constraint. We'll still have to compute intersections
 //
 // Exhaustive dfs through the graph of possibilities to accumulate the options
 // in a list of point + direction.
+path_list find_path(const coordinates& origin,
+                    const coordinates& destination,
+                    ball ball_data,
+                    const field& field) {
+  path_list result;
+  // If the destination is outside of the range of the ball,
+  if (!reachable(origin, destination, ball_data)) {
+    return result;
+  }
+
+  using point_to_explore = std::tuple<coordinates, ball, path>;
+  std::stack<point_to_explore> to_explore;
+
+  // we start from the origin, with the original amount of strikes
+  to_explore.push(point_to_explore(origin, ball_data, path{}));
+
+  while (!to_explore.empty()) {
+    point_to_explore current = std::move(to_explore.top());
+    to_explore.pop();
+
+    // for each point, we'll compute the 4 possible strikes and push the valid
+    // ones back onto the stack
+    for (auto d : {up, down, left, right}) {
+      coordinates c = std::get<0>(current);
+      ball b = std::get<1>(current);
+      path& p = std::get<2>(current);
+
+      auto point_reached = advance(c, d, b.value);
+
+      // If the ball cannot possibly reach the destination from this new
+      // position or is out of bounds, or is in the water, there is no need to
+      // keep checking this path
+      if (!reachable(point_reached, destination, b - 1) ||
+          x(point_reached) < 0 ||
+          to_unsigned(x(point_reached)) >= field.height() ||
+          y(point_reached) < 0 ||
+          to_unsigned(y(point_reached)) >= field.width() ||
+          at(field, point_reached) == water)
+        continue;
+
+      // Otherwise check that the path is correct
+      for (int i = 0; i < b.value; ++i) {
+        c = advance(c, d, 1);
+        if ((c != destination && at(field, c) == hole) ||
+            intersects(c, p, origin)) {
+          // falling in here means this path is invalid (out of bound, hole or
+          // already traversed), we can skip to the next direction
+          goto continue_outer_loop;  // tribute to A. Alexandreiscu, sue me
+        }
+      }
+
+      // We reached destination, save this path as a solution
+      if (point_reached == destination) {
+        auto copy = p;
+        copy.emplace_back(d, b);
+        result.push_back(std::move(copy));
+      }
+      // The strike is valid
+      // This was not the last strike and we didn't fall into the water
+      else if (b != ball{1}) {
+        auto copy = p;
+        copy.emplace_back(d, b);
+        to_explore.push(
+            point_to_explore(point_reached, b - 1, std::move(copy)));
+      }
+      // otherwise, the strike was invalid and we can drop it
+    continue_outer_loop:;
+    }
+  }
+
+  return result;
+}
+
+// Compat with unit tests
 path_list find_path(const coordinates& origin,
                     const coordinates& destination,
                     ball ball_data,
@@ -746,8 +862,22 @@ path_list find_path(const coordinates& origin,
   return result;
 }
 
+const auto& find_path(path_cache& cache,
+                      const ball_data& ball,
+                      const hole_data& hole,
+                      const field& field) {
+  auto key = path_cache_key(ball.coords, hole);
+  auto cache_it = cache.find(key);
+  if (cache_it == cache.end()) {
+    cache_it =
+        cache.emplace(key, find_path(ball.coords, hole, ball.n, field)).first;
+  }
+  return cache_it->second;
+}
+
 template <class BI, class HI>
-bool search(BI ball_it,
+bool search(path_cache& cache,
+            BI ball_it,
             BI ball_end,
             HI hole_it,
             HI hole_end,
@@ -760,13 +890,16 @@ bool search(BI ball_it,
   auto& b = *ball_it;
   auto& h = *hole_it;
 
-  auto paths = find_path(b.coords, h, b.n, f, a);
+  auto paths = find_path(cache, b, h, f);
   for (auto& p : paths) {
-    write_path(a, p, b.coords, write_path_direction);
-    if (search(ball_it + 1, ball_end, hole_it + 1, hole_end, f, a)) {
+    answer copy = a;
+    if (!write_path(copy, p, b.coords)) {
+      continue;
+    }
+    if (search(cache, ball_it + 1, ball_end, hole_it + 1, hole_end, f, copy)) {
+      std::swap(copy, a);
       return true;
     }
-    write_path(a, p, b.coords, write_empty);
   }
   return false;
 }
@@ -815,7 +948,8 @@ answer solve(const field& field) {
   // points, try the next permutation of holes
   auto ball_it = balls.begin();
   auto hole_it = sorted_holes.begin();
-  while (!search(balls.begin(),
+  while (!search(known_path,
+                 balls.begin(),
                  balls.end(),
                  sorted_holes.begin(),
                  sorted_holes.end(),
