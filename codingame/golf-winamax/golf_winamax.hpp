@@ -752,6 +752,31 @@ auto find_all_paths(path_cache& known_path,
   return cache_it;
 }
 
+template <class BI, class HI>
+bool search(BI ball_it,
+            BI ball_end,
+            HI hole_it,
+            HI hole_end,
+            const field& f,
+            answer& a) {
+  if (ball_it == ball_end || hole_it == hole_end) {
+    return true;
+  }
+
+  auto& b = *ball_it;
+  auto& h = *hole_it;
+
+  auto paths = find_path(b.coords, h, b.n, f, a);
+  for (auto& p : paths) {
+    write_path(a, p, b.coords, write_path_direction);
+    if (search(ball_it + 1, ball_end, hole_it + 1, hole_end, f, a)) {
+      return true;
+    }
+    write_path(a, p, b.coords, write_empty);
+  }
+  return false;
+}
+
 answer solve(const field& field) {
   answer result{field.width(), field.height()};
   ball_data_list balls;
@@ -767,47 +792,40 @@ answer solve(const field& field) {
               return left.n.value < right.n.value;
             });
 
+  hole_data_list sorted_holes;
+  sorted_holes.reserve(holes.size());
+
+  // Order the holes by accessibility
   for (auto ball_it = balls.begin(), ball_end = balls.end();
-       ball_it != ball_end;) {
+       ball_it != ball_end;
+       ++ball_it) {
     auto& ball = *ball_it;
-    // We start checking for solutions with the closest holes, that we're more
-    // likely to reach
-    sort(holes.begin(),
-         holes.end(),
-         [&ball](const hole_data& left, const hole_data& right) {
-           return manathan_distance(left, ball.coords) <
-                  manathan_distance(right, ball.coords);
-         });
 
-    auto hole_it = holes.begin();
-    for (auto hole_end = holes.end(); hole_it != hole_end;) {
-      auto& hole = *hole_it;
+    auto best_hole = std::min_element(
+        holes.begin(),
+        holes.end(),
+        [&ball](const hole_data& left, const hole_data& right) {
+          return manathan_distance(left, ball.coords) <
+                 manathan_distance(right, ball.coords);
+        });
 
-      auto& list =
-          find_all_paths(known_path, ball, hole, field, result)->second;
-
-      if (!list.empty()) {
-        // write the best path to the answer
-        write_path(result, list.front(), ball.coords, write_path_direction);
-        break;
-      }
-      // if none just try next hole
-      ++hole_it;
-    }
-
-    // if we found a path, move on to the next ball
-    if (hole_it != holes.end()) {
-      holes.erase(hole_it);
-      ++ball_it;
-    }
-    // if all holes tested and no solution, backtrack.
-    //     -> add back the hole used to the pool
-    //        then from the next hole from that one in the list, repeat the
-    //        process if all holes where exhausted, go back to the previous ball
-    //        and backtrack that one
-    // Else next ball
+    sorted_holes.push_back(*best_hole);
+    std::iter_swap(best_hole, holes.end() - 1);
+    holes.pop_back();
   }
 
+  // Tries to put each ball in the corresponding hole, if not possible at this
+  // points, try the next permutation of holes
+  auto ball_it = balls.begin();
+  auto hole_it = sorted_holes.begin();
+  while (!search(balls.begin(),
+                 balls.end(),
+                 sorted_holes.begin(),
+                 sorted_holes.end(),
+                 field,
+                 result)) {
+    std::next_permutation(sorted_holes.begin(), sorted_holes.end());
+  }
   return result;
 }
 
