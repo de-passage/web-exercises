@@ -473,3 +473,20 @@ TEST(Solve, ShouldReturnTheCorrectAnswerForTest8) {
   an >> a;
   ASSERT_EQ(a, solve(parse_field(in)));
 }
+
+TEST(Solve, ShouldReturnTheCorrectAnswerForTest19) {
+  ss in;
+  in << "40 10" << endl;
+  in << "5.....X..3...H................HX.....4XH" << endl;
+  in << "......X....XXXXX..............XX..2..HXX" << endl;
+  in << "......4H........X..4H.H...3..H....4....." << endl;
+  in << ".HH.........H5XX.....H................5." << endl;
+  in << "X............XXXX....X.244.2.X..H.5....." << endl;
+  in << "X.H..........XXXX.......44...X.........5" << endl;
+  in << "..............XX4.......3...H.........3." << endl;
+  in << "...3......3..X........X....H.H.........." << endl;
+  in << ".......HH.....XXXXX.H.X.......XX....H.XX" << endl;
+  in << "3........5....H.H.....X.......HX......XH" << endl;
+
+  // std::cout << solve(parse_field(in)) << endl;
+}

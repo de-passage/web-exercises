@@ -602,6 +602,70 @@ bool reachable(const coordinates& origin,
   return manathan_distance(origin, destination) <= max_distance;
 }
 
+template <class F>
+void write_path(answer& answer,
+                const path& p,
+                coordinates origin,
+                F&& make_val) {
+  for (const auto& s : p) {
+    for (int i = 0; i < s.second.value; ++i) {
+      auto r = advance(origin, s.first, i);
+      answer.at(to_unsigned(x(r)), to_unsigned(y(r))) = make_val(s.first);
+    }
+    origin = advance(origin, s.first, s.second.value);
+  }
+}
+
+const auto write_path_direction = [](const direction& d) -> answer_cell {
+  return d;
+};
+const auto write_empty = [](const direction&) -> answer_cell { return empty; };
+
+struct ball_data {
+  coordinates coords;
+  ball n;
+};
+using hole_data = coordinates;
+using ball_data_list = std::vector<ball_data>;
+using hole_data_list = std::vector<hole_data>;
+using path_cache_key = std::pair<coordinates, coordinates>;
+using path_cache =
+    std::unordered_map<path_cache_key, path_list, hash<path_cache_key>>;
+
+bool all_reachable(const ball_data_list& balls, const hole_data_list& holes) {
+  auto b = balls.begin();
+  auto h = holes.end();
+  for (; b != balls.end() && h != holes.end(); ++b, ++h) {
+    if (!reachable(b->coords, *h, b->n)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+auto make_cache_key(const ball_data& ball, const hole_data& hole) {
+  return std::make_pair(ball.coords, hole);
+}
+
+void fill_data(ball_data_list& balls,
+               hole_data_list& holes,
+               const field& field) {
+  for (auto it = field.indexed_begin(), end = field.indexed_end(); it != end;
+       ++it) {
+    switch (it->get_type()) {
+      case cell::type::ball:
+        balls.push_back(
+            ball_data{std::make_pair(it.x(), it.y()), it->ball_count()});
+        break;
+      case cell::type::hole:
+        holes.emplace_back(it.x(), it.y());
+        break;
+      default:
+        break;
+    }
+  }
+}
+
 // Find every possible valid path from origin to destination with ball_data,
 // taking both field and answ as constraints
 //
@@ -682,76 +746,6 @@ path_list find_path(const coordinates& origin,
   return result;
 }
 
-template <class F>
-void write_path(answer& answer,
-                const path& p,
-                coordinates origin,
-                F&& make_val) {
-  for (const auto& s : p) {
-    for (int i = 0; i < s.second.value; ++i) {
-      auto r = advance(origin, s.first, i);
-      answer.at(to_unsigned(x(r)), to_unsigned(y(r))) = make_val(s.first);
-    }
-    origin = advance(origin, s.first, s.second.value);
-  }
-}
-
-const auto write_path_direction = [](const direction& d) -> answer_cell {
-  return d;
-};
-const auto write_empty = [](const direction&) -> answer_cell { return empty; };
-
-struct ball_data {
-  coordinates coords;
-  ball n;
-};
-using hole_data = coordinates;
-using ball_data_list = std::vector<ball_data>;
-using hole_data_list = std::vector<hole_data>;
-using path_cache_key = std::pair<coordinates, coordinates>;
-using path_cache =
-    std::unordered_map<path_cache_key, path_list, hash<path_cache_key>>;
-
-auto make_cache_key(const ball_data& ball, const hole_data& hole) {
-  return std::make_pair(ball.coords, hole);
-}
-
-void fill_data(ball_data_list& balls,
-               hole_data_list& holes,
-               const field& field) {
-  for (auto it = field.indexed_begin(), end = field.indexed_end(); it != end;
-       ++it) {
-    switch (it->get_type()) {
-      case cell::type::ball:
-        balls.push_back(
-            ball_data{std::make_pair(it.x(), it.y()), it->ball_count()});
-        break;
-      case cell::type::hole:
-        holes.emplace_back(it.x(), it.y());
-        break;
-      default:
-        break;
-    }
-  }
-}
-
-auto find_all_paths(path_cache& known_path,
-                    const ball_data& ball,
-                    const hole_data& hole,
-                    const field& field,
-                    const answer& result) {
-  // find all paths from ball to hole.
-  auto key = make_cache_key(ball, hole);
-  auto cache_it = known_path.find(key);
-  if (cache_it == known_path.end()) {
-    cache_it =
-        known_path
-            .emplace(key, find_path(ball.coords, hole, ball.n, field, result))
-            .first;
-  }
-  return cache_it;
-}
-
 template <class BI, class HI>
 bool search(BI ball_it,
             BI ball_end,
@@ -796,9 +790,11 @@ answer solve(const field& field) {
   sorted_holes.reserve(holes.size());
 
   // Order the holes by accessibility
+  std::unordered_map<hole_data, int, hash<hole_data>> total_order;
+  int i = 0;
   for (auto ball_it = balls.begin(), ball_end = balls.end();
        ball_it != ball_end;
-       ++ball_it) {
+       ++ball_it, ++i) {
     auto& ball = *ball_it;
 
     auto best_hole = std::min_element(
@@ -809,6 +805,7 @@ answer solve(const field& field) {
                  manathan_distance(right, ball.coords);
         });
 
+    total_order.emplace(*best_hole, i);
     sorted_holes.push_back(*best_hole);
     std::iter_swap(best_hole, holes.end() - 1);
     holes.pop_back();
@@ -824,7 +821,15 @@ answer solve(const field& field) {
                  sorted_holes.end(),
                  field,
                  result)) {
-    std::next_permutation(sorted_holes.begin(), sorted_holes.end());
+    do {
+      std::next_permutation(
+          sorted_holes.begin(),
+          sorted_holes.end(),
+          [&total_order](const hole_data& left, const hole_data& right) {
+            return total_order[left] < total_order[right];
+          });
+
+    } while (!all_reachable(balls, sorted_holes));
   }
   return result;
 }
