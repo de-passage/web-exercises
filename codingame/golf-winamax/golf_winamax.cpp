@@ -474,6 +474,23 @@ TEST(Solve, ShouldReturnTheCorrectAnswerForTest8) {
   ASSERT_EQ(a, solve(parse_field(in)));
 }
 
+TEST(Solve, ShouldReturnTheCorrectAnswerForTest9) {
+  ss in;
+  in << "40 8" << endl;
+  in << ".XXX.5XX4H5............4H..3XXH.2.HX3..." << endl;
+  in << "XX4.X..X......3.....HH.2X.....5.....4XX." << endl;
+  in << "X4..X3.X......H...5.....XXXXXXX2.HX2..H." << endl;
+  in << "X..XXXXX.....H3.H.X..22X3XXH.X2X...2HHXH" << endl;
+  in << ".X.X.H.X........X3XH.HXX.XXXXX.H..HX..2." << endl;
+  in << "X.HX.X.X....HH....X3.H.X.....H..XXXX3..." << endl;
+  in << "X..X.H.X.43......XXH....HXX3..H.X2.HX2.." << endl;
+  in << ".XHXXXXX..H3H...H2X.H..3X2..HXX3H.2XXXXH" << endl;
+
+  ss an;
+  answer a(40, 8);
+  // std::cout << solve(parse_field(in)) << endl;
+}
+
 TEST(Solve, ShouldReturnTheCorrectAnswerForTest19) {
   ss in;
   in << "40 10" << endl;

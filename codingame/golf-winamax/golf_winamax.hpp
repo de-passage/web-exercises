@@ -525,8 +525,27 @@ struct answer_cell {
   direction _direction{};
 };
 
-using answer = two_d_array<answer_cell>;
+template <class T>
+struct hash : std::hash<T> {};
 
+// Adapted from boost
+template <typename T>
+inline void hash_combine(std::size_t& seed, const T& val) {
+  hash<T> hasher;
+  seed ^= hasher(val) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
+template <typename S, typename T>
+struct hash<std::pair<S, T>> {
+  inline size_t operator()(const std::pair<S, T>& val) const {
+    size_t seed = 0;
+    hash_combine(seed, val.first);
+    hash_combine(seed, val.second);
+    return seed;
+  }
+};
+
+using answer = two_d_array<answer_cell>;
 using coordinates = std::pair<int, int>;
 using path_point = std::pair<direction, ball>;
 using path = std::vector<path_point>;
@@ -535,6 +554,16 @@ using hole_list = std::vector<coordinates>;
 using coordinates_extractor = const int& (*)(const coordinates&);
 constexpr coordinates_extractor x = std::get<0>;
 constexpr coordinates_extractor y = std::get<1>;
+struct ball_data {
+  coordinates coords;
+  ball n;
+};
+using hole_data = coordinates;
+using ball_data_list = std::vector<ball_data>;
+using hole_data_list = std::vector<hole_data>;
+using path_cache_key = std::pair<coordinates, coordinates>;
+using path_cache =
+    std::unordered_map<path_cache_key, path_list, hash<path_cache_key>>;
 
 template <class T, class R = std::make_signed_t<T>>
 constexpr R to_signed(T in) noexcept {
@@ -574,25 +603,6 @@ template <class T>
 decltype(auto) at(T& t, const coordinates& c) {
   return t.at(to_unsigned(c.first), to_unsigned(c.second));
 }
-template <class T>
-struct hash : std::hash<T> {};
-
-// Adapted from boost
-template <typename T>
-inline void hash_combine(std::size_t& seed, const T& val) {
-  hash<T> hasher;
-  seed ^= hasher(val) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-}
-
-template <typename S, typename T>
-struct hash<std::pair<S, T>> {
-  inline size_t operator()(const std::pair<S, T>& val) const {
-    size_t seed = 0;
-    hash_combine(seed, val.first);
-    hash_combine(seed, val.second);
-    return seed;
-  }
-};
 
 bool intersects(const coordinates& c, const path& path, const coordinates& o) {
   coordinates begin = o;
@@ -625,6 +635,11 @@ bool reachable(const coordinates& origin,
                ball b) {
   size_t max_distance = to_unsigned(b.value * (b.value + 1) / 2);
   return manathan_distance(origin, destination) <= max_distance;
+}
+
+bool reachable(const ball_data& ball, const hole_data& destination) {
+  size_t max_distance = to_unsigned(ball.n.value * (ball.n.value + 1) / 2);
+  return manathan_distance(ball.coords, destination) <= max_distance;
 }
 
 template <class F>
@@ -662,17 +677,6 @@ const auto write_path_direction = [](const direction& d) -> answer_cell {
   return d;
 };
 const auto write_empty = [](const direction&) -> answer_cell { return empty; };
-
-struct ball_data {
-  coordinates coords;
-  ball n;
-};
-using hole_data = coordinates;
-using ball_data_list = std::vector<ball_data>;
-using hole_data_list = std::vector<hole_data>;
-using path_cache_key = std::pair<coordinates, coordinates>;
-using path_cache =
-    std::unordered_map<path_cache_key, path_list, hash<path_cache_key>>;
 
 bool all_reachable(const ball_data_list& balls, const hole_data_list& holes) {
   auto b = balls.begin();
@@ -902,6 +906,59 @@ bool search(path_cache& cache,
     }
   }
   return false;
+}
+
+void holes_by_closest(hole_data_list& holes, const ball_data& ball) {
+  std::sort(holes.begin(),
+            holes.end(),
+            [&ball](const hole_data& left, const hole_data& right) {
+              return manathan_distance(left, ball.coords) <
+                     manathan_distance(right, ball.coords);
+            });
+}
+
+template <class It>
+bool go_through_every_ball(It ball_it,
+                           It ball_end,
+                           hole_data_list&& holes,
+                           path_cache& known_path,
+                           const field& field,
+                           answer& result) {
+  if (ball_it == ball_end)
+    return true;  // no balls left to solve
+
+  auto& ball = ball_it;
+  holes_by_closest(holes, ball);
+
+  for (auto it = holes.begin(); it != holes.end(); ++it) {
+    auto& h = *it;
+
+    auto paths = find_path(cache, b, h, f);
+
+    if (path.empty())
+      return false;
+
+    // All holes except the one we selected
+    hole_data_list holes_except;
+    holes_except.reserve(holes.size() - 1);
+    auto next = std::copy(holes.begin(), it);
+    std::copy(it + 1, holes.end(), next);
+
+    for (auto& p : paths) {
+      answer copy = a;
+      if (!write_path(copy, p, b.coords)) {
+        continue;
+      }
+
+      // We matched all balls
+      if (go_through_every_ball(
+              ball_it + 1, ball_end, move(holes_except), f, copy)) {
+        std::swap(copy, a);
+        return true;
+      }
+    }
+    return false;
+  }
 }
 
 answer solve(const field& field) {
