@@ -920,45 +920,47 @@ void holes_by_closest(hole_data_list& holes, const ball_data& ball) {
 template <class It>
 bool go_through_every_ball(It ball_it,
                            It ball_end,
-                           hole_data_list&& holes,
+                           hole_data_list holes,
                            path_cache& known_path,
                            const field& field,
                            answer& result) {
   if (ball_it == ball_end)
     return true;  // no balls left to solve
 
-  auto& ball = ball_it;
+  auto& ball = *ball_it;
   holes_by_closest(holes, ball);
 
   for (auto it = holes.begin(); it != holes.end(); ++it) {
     auto& h = *it;
 
-    auto paths = find_path(cache, b, h, f);
+    auto paths = find_path(known_path, ball, h, field);
 
-    if (path.empty())
-      return false;
+    if (paths.empty()) {
+      continue;
+    }
 
     // All holes except the one we selected
     hole_data_list holes_except;
     holes_except.reserve(holes.size() - 1);
-    auto next = std::copy(holes.begin(), it);
+    auto next = std::copy(holes.begin(), it, std::back_inserter(holes_except));
     std::copy(it + 1, holes.end(), next);
 
     for (auto& p : paths) {
-      answer copy = a;
-      if (!write_path(copy, p, b.coords)) {
-        continue;
+      answer copy = result;
+      if (!write_path(copy, p, ball.coords)) {
+        goto break_out;
       }
 
       // We matched all balls
       if (go_through_every_ball(
-              ball_it + 1, ball_end, move(holes_except), f, copy)) {
-        std::swap(copy, a);
+              ball_it + 1, ball_end, holes_except, known_path, field, copy)) {
+        std::swap(copy, result);
         return true;
       }
     }
-    return false;
+  break_out:;
   }
+  return false;
 }
 
 answer solve(const field& field) {
@@ -975,53 +977,8 @@ answer solve(const field& field) {
             [](const ball_data& left, const ball_data& right) {
               return left.n.value < right.n.value;
             });
-
-  hole_data_list sorted_holes;
-  sorted_holes.reserve(holes.size());
-
-  // Order the holes by accessibility
-  std::unordered_map<hole_data, int, hash<hole_data>> total_order;
-  int i = 0;
-  for (auto ball_it = balls.begin(), ball_end = balls.end();
-       ball_it != ball_end;
-       ++ball_it, ++i) {
-    auto& ball = *ball_it;
-
-    auto best_hole = std::min_element(
-        holes.begin(),
-        holes.end(),
-        [&ball](const hole_data& left, const hole_data& right) {
-          return manathan_distance(left, ball.coords) <
-                 manathan_distance(right, ball.coords);
-        });
-
-    total_order.emplace(*best_hole, i);
-    sorted_holes.push_back(*best_hole);
-    std::iter_swap(best_hole, holes.end() - 1);
-    holes.pop_back();
-  }
-
-  // Tries to put each ball in the corresponding hole, if not possible at this
-  // points, try the next permutation of holes
-  auto ball_it = balls.begin();
-  auto hole_it = sorted_holes.begin();
-  while (!search(known_path,
-                 balls.begin(),
-                 balls.end(),
-                 sorted_holes.begin(),
-                 sorted_holes.end(),
-                 field,
-                 result)) {
-    do {
-      std::next_permutation(
-          sorted_holes.begin(),
-          sorted_holes.end(),
-          [&total_order](const hole_data& left, const hole_data& right) {
-            return total_order[left] < total_order[right];
-          });
-
-    } while (!all_reachable(balls, sorted_holes));
-  }
+  go_through_every_ball(
+      balls.begin(), balls.end(), move(holes), known_path, field, result);
   return result;
 }
 

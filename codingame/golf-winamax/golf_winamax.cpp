@@ -488,7 +488,17 @@ TEST(Solve, ShouldReturnTheCorrectAnswerForTest9) {
 
   ss an;
   answer a(40, 8);
-  // std::cout << solve(parse_field(in)) << endl;
+  an << "v<<<<<..v.>>>>>vv<<<<<<<.<<<...<>>..>>>v" << endl;
+  an << "v.>>>>v.v^<<<<<vv>>>..<<.v<<<<<^v<<<<..v" << endl;
+  an << "vvv<<<v.v>>>>>.vv^>>>>>v.v.....^v..>>v.<" << endl;
+  an << "vvv...v.v^>>>.vv.^.v<<vvvv..<.v.v^<<...." << endl;
+  an << "vvv.>.v.v^^>>vvv.^..>.vvvv..^.v.>>..^<<^" << endl;
+  an << "vv..^.v.v^^^..vvv<<<^.<vv>>>^.<^....>>>^" << endl;
+  an << "v>>>^.<.v^^^^<<vv...^<<<...>>>.^.>>..>>v" << endl;
+  an << ">>......>>.^.<<<.>>^.<<<.>>>...^.<<....." << endl;
+  an >> a;
+
+  ASSERT_EQ(solve(parse_field(in)), a);
 }
 
 TEST(Solve, ShouldReturnTheCorrectAnswerForTest19) {
@@ -505,5 +515,19 @@ TEST(Solve, ShouldReturnTheCorrectAnswerForTest19) {
   in << ".......HH.....XXXXX.H.X.......XX....H.XX" << endl;
   in << "3........5....H.H.....X.......HX......XH" << endl;
 
-  // std::cout << solve(parse_field(in)) << endl;
+  ss an;
+  an << ">>>>>v...v..>........v<<<>>>v..<<<<<<<.." << endl;
+  an << ".....v...v..^........v..^^..v.....>>>..^" << endl;
+  an << "..v<<vv..v..^<<<<<<<.v.<^^v.>.v<<<<....^" << endl;
+  an << "....^vv^<<...>>>>>v.^..^^^v...v..v<<<<<^" << endl;
+  an << ".^<<^vv...>>^.....v.^..^^^vv..v..v>>>>>^" << endl;
+  an << "...^^vv...^.......v.^<<<<vvv..>>^vv<<<<<" << endl;
+  an << ">>^^^v>>>v^.v<<<<.v..v<<<vv>.....vvv<<<." << endl;
+  an << "^..^^>>v.v^.v..v<<<..v...v>.>.v<<<vv...." << endl;
+  an << "^...^....<..v..v.....<...v..^.v...v>...." << endl;
+  an << "^...^<<<<<..>>.>.........>>>^.....>>>>>." << endl;
+  answer a(40, 10);
+  an >> a;
+
+  ASSERT_EQ(solve(parse_field(in)), a);
 }
