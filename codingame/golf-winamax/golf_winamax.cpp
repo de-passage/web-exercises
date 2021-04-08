@@ -183,13 +183,14 @@ TEST(Solve, ShouldPassModeratelyComplexExample) {
 
 TEST(Solve, ShouldPassMoreComplicatedExample) {
   ss in;
+  in << "6 6" << endl;
   in << "3..H.2" << endl;
   in << ".2..H." << endl;
   in << "..H..H" << endl;
   in << ".X.2.X" << endl;
   in << "......" << endl;
   in << "3..H.." << endl;
-  field f(6, 6);
+  field f = parse_field(in);
 
   in.str("");
   in.clear();
@@ -421,20 +422,7 @@ TEST(WritePath, ShouldOnlyOverwriteGivenPathWithErasingFunction) {
   ASSERT_EQ(a, expected);
 }
 
-TEST(Solve, ShouldReturnAnAnswerForTest4) {
-  ss in;
-  in << "6 6" << endl;
-  in << "3..H.2" << endl;
-  in << ".2..H." << endl;
-  in << "..H..H" << endl;
-  in << ".X.2.X" << endl;
-  in << "......" << endl;
-  in << "3..H.." << endl;
-
-  std::cout << solve(parse_field(in)) << endl;
-}
-
-TEST(Solve, ShouldReturnAnAnswerForTest6) {
+TEST(Solve, ShouldReturnTheCorrectAnswerForTest6) {
   ss in;
   in << "8 8" << endl;
   in << ".......4" << endl;
@@ -446,10 +434,21 @@ TEST(Solve, ShouldReturnAnAnswerForTest6) {
   in << "..XH...." << endl;
   in << "H2X.H..3" << endl;
 
-  std::cout << solve(parse_field(in)) << endl;
+  answer a(8, 8);
+  ss an;
+  an << "v<<<<<<<" << endl;
+  an << "v>>>..<<" << endl;
+  an << "v^>>>>>v" << endl;
+  an << ".^.v<<vv" << endl;
+  an << ".^..>.vv" << endl;
+  an << "v<<<^.<v" << endl;
+  an << "v...^<<<" << endl;
+  an << ".>>^.<<<" << endl;
+  an >> a;
+  ASSERT_EQ(a, solve(parse_field(in)));
 }
 
-TEST(Solve, ShouldReturnAnAnswerForTest8) {
+TEST(Solve, ShouldReturnTheCorrectAnswerForTest8) {
   ss in;
   in << "8 8" << endl;
   in << "H..3..H." << endl;
@@ -461,5 +460,16 @@ TEST(Solve, ShouldReturnAnAnswerForTest8) {
   in << "H..3..H." << endl;
   in << ".2..H..3" << endl;
 
-  std::cout << solve(parse_field(in)) << endl;
+  ss an;
+  answer a(8, 8);
+  an << ".<<<...<" << endl;
+  an << ".v<<<<<^" << endl;
+  an << ".v.....^" << endl;
+  an << "vv..<.v." << endl;
+  an << "vv..^.v." << endl;
+  an << "v>>>^.<^" << endl;
+  an << "...>>>.^" << endl;
+  an << ".>>>...^" << endl;
+  an >> a;
+  ASSERT_EQ(a, solve(parse_field(in)));
 }
