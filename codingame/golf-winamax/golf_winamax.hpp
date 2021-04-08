@@ -595,6 +595,13 @@ bool intersects(const coordinates& c, const path& path, const coordinates& o) {
   return false;
 }
 
+bool reachable(const coordinates& origin,
+               const coordinates& destination,
+               ball b) {
+  size_t max_distance = to_unsigned(b.value * (b.value + 1) / 2);
+  return manathan_distance(origin, destination) <= max_distance;
+}
+
 // Find every possible valid path from origin to destination with ball_data,
 // taking both field and answ as constraints
 //
@@ -604,13 +611,18 @@ path_list find_path(const coordinates& origin,
                     const coordinates& destination,
                     ball ball_data,
                     const field& field,
-                    answer& answ) {
+                    const answer& answ) {
+  path_list result;
+  // If the destination is outside of the range of the ball,
+  if (!reachable(origin, destination, ball_data)) {
+    return result;
+  }
+
   using point_to_explore = std::tuple<coordinates, ball, path>;
   std::stack<point_to_explore> to_explore;
 
   // we start from the origin, with the original amount of strikes
   to_explore.push(point_to_explore(origin, ball_data, path{}));
-  path_list result;
 
   while (!to_explore.empty()) {
     point_to_explore current = std::move(to_explore.top());
@@ -622,11 +634,24 @@ path_list find_path(const coordinates& origin,
       coordinates c = std::get<0>(current);
       ball b = std::get<1>(current);
       path& p = std::get<2>(current);
+
+      auto point_reached = advance(c, d, b.value);
+
+      // If the ball cannot possibly reach the destination from this new
+      // position or is out of bounds, or is in the water, there is no need to
+      // keep checking this path
+      if (!reachable(point_reached, destination, b - 1) ||
+          x(point_reached) < 0 ||
+          to_unsigned(x(point_reached)) >= field.height() ||
+          y(point_reached) < 0 ||
+          to_unsigned(y(point_reached)) >= field.width() ||
+          at(field, point_reached) == water)
+        continue;
+
+      // Otherwise check that the path is correct
       for (int i = 0; i < b.value; ++i) {
         c = advance(c, d, 1);
-        if (c.first < 0 || to_unsigned(c.first) >= field.height() ||
-            c.second < 0 || to_unsigned(c.second) >= field.width() ||
-            at(answ, c) != empty ||
+        if (at(answ, c) != empty ||
             (c != destination && at(field, c) == hole) ||
             intersects(c, p, origin)) {
           // falling in here means this path is invalid (out of bound, hole or
@@ -636,17 +661,18 @@ path_list find_path(const coordinates& origin,
       }
 
       // We reached destination, save this path as a solution
-      if (c == destination) {
+      if (point_reached == destination) {
         auto copy = p;
-        copy.push_back(std::make_pair(d, b));
+        copy.emplace_back(d, b);
         result.push_back(std::move(copy));
       }
       // The strike is valid
       // This was not the last strike and we didn't fall into the water
-      else if (b != ball{1} && at(field, c) != water) {
+      else if (b != ball{1}) {
         auto copy = p;
-        copy.push_back(std::make_pair(d, b));
-        to_explore.push(point_to_explore(c, b - 1, std::move(copy)));
+        copy.emplace_back(d, b);
+        to_explore.push(
+            point_to_explore(point_reached, b - 1, std::move(copy)));
       }
       // otherwise, the strike was invalid and we can drop it
     continue_outer_loop:;
@@ -675,19 +701,24 @@ const auto write_path_direction = [](const direction& d) -> answer_cell {
 };
 const auto write_empty = [](const direction&) -> answer_cell { return empty; };
 
-answer solve(const field& field) {
-  answer result{field.width(), field.height()};
-  struct ball_data {
-    coordinates coords;
-    ball n;
-  };
-  using hole_data = coordinates;
-  using cache_key = std::pair<coordinates, coordinates>;
-  using cache = std::unordered_map<cache_key, path_list, hash<cache_key>>;
-  std::vector<ball_data> balls;
-  std::vector<hole_data> holes;
-  cache known_path;
+struct ball_data {
+  coordinates coords;
+  ball n;
+};
+using hole_data = coordinates;
+using ball_data_list = std::vector<ball_data>;
+using hole_data_list = std::vector<hole_data>;
+using path_cache_key = std::pair<coordinates, coordinates>;
+using path_cache =
+    std::unordered_map<path_cache_key, path_list, hash<path_cache_key>>;
 
+auto make_cache_key(const ball_data& ball, const hole_data& hole) {
+  return std::make_pair(ball.coords, hole);
+}
+
+void fill_data(ball_data_list& balls,
+               hole_data_list& holes,
+               const field& field) {
   for (auto it = field.indexed_begin(), end = field.indexed_end(); it != end;
        ++it) {
     switch (it->get_type()) {
@@ -702,6 +733,31 @@ answer solve(const field& field) {
         break;
     }
   }
+}
+
+auto find_all_paths(path_cache& known_path,
+                    const ball_data& ball,
+                    const hole_data& hole,
+                    const field& field,
+                    const answer& result) {
+  // find all paths from ball to hole.
+  auto key = make_cache_key(ball, hole);
+  auto cache_it = known_path.find(key);
+  if (cache_it == known_path.end()) {
+    cache_it =
+        known_path
+            .emplace(key, find_path(ball.coords, hole, ball.n, field, result))
+            .first;
+  }
+  return cache_it;
+}
+
+answer solve(const field& field) {
+  answer result{field.width(), field.height()};
+  ball_data_list balls;
+  hole_data_list holes;
+  path_cache known_path;
+  fill_data(balls, holes, field);
 
   // We start with the balls with the less available strikes as they should be
   // the most constraining
@@ -727,17 +783,8 @@ answer solve(const field& field) {
     for (auto hole_end = holes.end(); hole_it != hole_end;) {
       auto& hole = *hole_it;
 
-      // find all paths from ball to hole.
-      auto key = std::make_pair(ball.coords, hole);
-      auto cache_it = known_path.find(key);
-      if (cache_it == known_path.end()) {
-        cache_it =
-            known_path
-                .emplace(key,
-                         find_path(ball.coords, hole, ball.n, field, result))
-                .first;
-      }
-      auto& list = cache_it->second;
+      auto& list =
+          find_all_paths(known_path, ball, hole, field, result)->second;
 
       if (!list.empty()) {
         // write the best path to the answer
@@ -745,13 +792,13 @@ answer solve(const field& field) {
         break;
       }
       // if none just try next hole
-
-      // if found, exit loop and remove hole from available holes
-      // need to consider all possible paths?
       ++hole_it;
     }
 
+    // if we found a path, move on to the next ball
     if (hole_it != holes.end()) {
+      holes.erase(hole_it);
+      ++ball_it;
     }
     // if all holes tested and no solution, backtrack.
     //     -> add back the hole used to the pool
@@ -759,7 +806,6 @@ answer solve(const field& field) {
     //        process if all holes where exhausted, go back to the previous ball
     //        and backtrack that one
     // Else next ball
-    ++ball_it;
   }
 
   return result;

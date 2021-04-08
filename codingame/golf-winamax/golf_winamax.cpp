@@ -286,6 +286,23 @@ TEST(FindPaths, ShouldAvoidFallingIntoWater) {
   check_solutions(solutions, l);
 }
 
+TEST(FindPaths, ShouldAvoidJumpingOverHole) {
+  ss in;
+  in << "4 4" << endl;
+  in << "3..." << endl;
+  in << "...H" << endl;
+  in << "..H." << endl;
+  in << "...." << endl;
+  auto f = parse_field(in);
+  answer a(4, 4);
+  auto l = find_path({0, 0}, {2, 2}, 3_b, f, a);
+  ASSERT_EQ(l.size(), 1);
+
+  path_solutions solutions = {
+      path{make_pair(down, 3_b), make_pair(right, 2_b), make_pair(up, 1_b)}};
+  check_solutions(solutions, l);
+}
+
 TEST(Intersects, ShouldReturnFalseIfNoIntersection) {
   // >>>>>v
   // .....v
@@ -402,4 +419,47 @@ TEST(WritePath, ShouldOnlyOverwriteGivenPathWithErasingFunction) {
   write_path(a, p, {0, 0}, write_empty);
 
   ASSERT_EQ(a, expected);
+}
+
+TEST(Solve, ShouldReturnAnAnswerForTest4) {
+  ss in;
+  in << "6 6" << endl;
+  in << "3..H.2" << endl;
+  in << ".2..H." << endl;
+  in << "..H..H" << endl;
+  in << ".X.2.X" << endl;
+  in << "......" << endl;
+  in << "3..H.." << endl;
+
+  std::cout << solve(parse_field(in)) << endl;
+}
+
+TEST(Solve, ShouldReturnAnAnswerForTest6) {
+  ss in;
+  in << "8 8" << endl;
+  in << ".......4" << endl;
+  in << "....HH.2" << endl;
+  in << "..5....." << endl;
+  in << "H....22X" << endl;
+  in << ".3XH.HXX" << endl;
+  in << "..X3.H.X" << endl;
+  in << "..XH...." << endl;
+  in << "H2X.H..3" << endl;
+
+  std::cout << solve(parse_field(in)) << endl;
+}
+
+TEST(Solve, ShouldReturnAnAnswerForTest8) {
+  ss in;
+  in << "8 8" << endl;
+  in << "H..3..H." << endl;
+  in << "......5." << endl;
+  in << ".XXXXX.2" << endl;
+  in << "3X.H.X2." << endl;
+  in << ".XXXXX.H" << endl;
+  in << ".....H.." << endl;
+  in << "H..3..H." << endl;
+  in << ".2..H..3" << endl;
+
+  std::cout << solve(parse_field(in)) << endl;
 }
