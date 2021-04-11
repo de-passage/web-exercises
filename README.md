@@ -11,4 +11,4 @@ Coding exercices, mostly in Haskell, dealing with complex type problems and algo
 ## Codingame
 
 AIs and algorithms, mostly in C++.  
-[Subfolder](/codinngames/)
+[Subfolder](/codingame/)
