@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "./binary_search.hpp"
+#include "./test_gen.hpp"
 
 #include <sstream>
 

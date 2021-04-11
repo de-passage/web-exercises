@@ -1,3 +1,5 @@
+#ifndef GUARD_DPSG_BINARY_SEARCH_HPP
+#define GUARD_DPSG_BINARY_SEARCH_HPP
 #include <iostream>
 
 struct coordinates {
@@ -61,3 +63,5 @@ inline temperature get_temperature(std::istream& in) {
   in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
   return tmp;
 }
+
+#endif  // GUARD_DPSG_BINARY_SEARCH_HPP
