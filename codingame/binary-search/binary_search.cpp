@@ -81,7 +81,7 @@ TEST(FakeReferee, ShouldBeConstructibleAndIOAsIntended) {
   io >> w >> h >> n;
   ASSERT_EQ(w, 12);
   ASSERT_EQ(h, 13);
-  ASSERT_EQ(n, 0);
+  ASSERT_EQ(n, std::numeric_limits<size_t>::max());
 
   coordinates ini2;
   io >> ini2;
@@ -104,4 +104,13 @@ TEST(FakeReferee, ShouldBeConstructibleAndIOAsIntended) {
   io << ref.underlying_test().current_position() << endl;
   io >> temp;
   ASSERT_EQ(temp, temperature::same);
+}
+
+TEST(Test, ShouldFindTheAnswerInSimpleCase) {
+  coordinates solution{2, 3};
+  fake_referee ref(test(12, 12, solution, {5, 5}));
+  std::iostream io(&ref);
+
+  auto result = search_by_rectangles(io, io);
+  ASSERT_EQ(result, solution);
 }

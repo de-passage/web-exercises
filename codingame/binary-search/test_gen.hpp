@@ -10,14 +10,17 @@
 
 class test {
  public:
-  inline explicit test(size_t width,
-                       size_t height,
-                       coordinates solution,
-                       coordinates position)
+  inline explicit test(
+      size_t width,
+      size_t height,
+      coordinates solution,
+      coordinates position,
+      size_t allowed_tries = std::numeric_limits<size_t>::max())
       : _height{height},
         _width{width},
         _position{position},
-        _solution{solution} {
+        _solution{solution},
+        _allowed{allowed_tries} {
     if (position.x >= width || position.y >= height) {
       throw std::out_of_range("Initial position outside the search space");
     }
@@ -28,6 +31,10 @@ class test {
   enum result { found, invalid, in_progress };
 
   inline temperature check(const coordinates& answer) {
+    if (_allowed-- == 0) {
+      throw std::runtime_error("Available tries exceeded");
+    }
+
     if (answer.x >= _width || answer.y >= _height) {
       throw std::out_of_range("Answer outside the search space");
     }
@@ -66,11 +73,14 @@ class test {
   coordinates current_position() const { return _position; }
   coordinates solution() const { return _solution; }
 
+  size_t remaining_tries() const { return _allowed; }
+
  private:
   size_t _height;
   size_t _width;
   coordinates _position;  // last recorded position
   coordinates _solution;
+  size_t _allowed;
 
   static std::minstd_rand _engine;
 
@@ -88,7 +98,7 @@ class fake_referee : public std::streambuf {
     _resetp();
     std::stringstream in;
     in << _test.width() << " " << _test.height() << std::endl;
-    in << 0 << std::endl;
+    in << _test.remaining_tries() << std::endl;
     in << _test.current_position().x << " " << _test.current_position().y
        << std::endl;
     in << "UNKNOWN" << std::endl;
