@@ -40,6 +40,10 @@ class test {
     }
 
     auto last_position = std::exchange(_position, answer);
+    if (_position == _solution) {
+      return temperature::found;
+    }
+
     switch (relative_distance_from(_solution, _position, last_position)) {
       case ordering::equal:
         return temperature::same;

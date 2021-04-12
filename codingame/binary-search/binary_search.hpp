@@ -205,7 +205,13 @@ inline ordering relative_distance_from(const coordinates& origin,
   return ordering::greater;
 }
 
-enum class temperature { hot, cold, same, unknown };
+enum class temperature {
+  hot,
+  cold,
+  same,
+  unknown,
+  found /* stopping point in unit tests */
+};
 inline std::ostream& operator<<(std::ostream& out, temperature t) {
   switch (t) {
     case temperature::hot:
@@ -214,6 +220,8 @@ inline std::ostream& operator<<(std::ostream& out, temperature t) {
       return out << "SAME";
     case temperature::cold:
       return out << "COLDER";
+    case temperature::found:
+      return out << "FOUND";
     default:
       return out << "UNKNOWN";
   }
@@ -230,6 +238,9 @@ inline std::istream& operator>>(std::istream& in, temperature& tmp) {
   }
   else if (dir == "SAME") {
     tmp = temperature::same;
+  }
+  else if (dir == "FOUND") {
+    tmp = temperature::found;
   }
   else {
     tmp = temperature::unknown;
@@ -260,11 +271,15 @@ coordinates search_by_rectangles(std::istream& in, std::ostream& out) {
   in >> current;
   coordinates last{current};
 
-  temperature temp;
+  temperature temp = temperature::unknown;
   bool searching = false;
 
   while (search_space.width() > 1 || search_space.height() > 1) {
     in >> temp;
+
+    if (temp == temperature::found) {
+      return current;
+    }
 
     if (!searching) {
       auto p = search_space.symmetric_point_boxed(current);

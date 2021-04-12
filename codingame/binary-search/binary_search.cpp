@@ -97,13 +97,19 @@ TEST(FakeReferee, ShouldBeConstructibleAndIOAsIntended) {
   io >> temp;
   ASSERT_EQ(temp, temperature::cold);
 
-  io << ref.underlying_test().solution() << std::endl;
+  c t = ref.underlying_test().solution();
+  t.x++;
+  io << t << std::endl;
   io >> temp;
   ASSERT_EQ(temp, temperature::hot);
 
   io << ref.underlying_test().current_position() << endl;
   io >> temp;
   ASSERT_EQ(temp, temperature::same);
+
+  io << ref.underlying_test().solution() << endl;
+  io >> temp;
+  ASSERT_EQ(temp, temperature::found);
 }
 
 TEST(Symmetry, ShouldFindASymetricPointInAValidBox) {
@@ -137,7 +143,20 @@ TEST(BestHalf, ShouldReturnTheLongestSideCutInHalf) {
   }
 }
 
-TEST(Test, ShouldFindTheAnswerInSimpleCase) {
+TEST(SearchByRectangles, ShouldSucceed_1) {
+  c solution{23, 21};
+  test t(24, 24, solution, {22, 13}, 15);
+  fake_referee ref(t);
+  std::iostream io(&ref);
+
+  ASSERT_EQ(search_by_rectangles(io, io), solution);
+}
+
+TEST(SearchByRectangles, ShouldSucceed_2) {
+  c solution{0, 1};
+}
+
+TEST(SearchByRectangles, ShouldFindTheAnswerInSimpleCase) {
   coordinates solution{2, 3};
   fake_referee ref(test(12, 12, solution, {5, 5}));
   std::iostream io(&ref);
