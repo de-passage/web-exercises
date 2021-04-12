@@ -31,3 +31,15 @@ TEST(Middle, ShouldComputeTheCorrectMiddlePoint) {
   ASSERT_EQ(middle({4, 4}, {4, 4}), (c{4, 4}));
   ASSERT_EQ(middle({1, 3}, {8, 5}), (c{4, 4}));
 }
+
+TEST(DistanceSquared, ShouldComputeCorrectly) {
+  ASSERT_EQ(distance_squared(c{3, 2}, c{7, 5}), 25);
+  ASSERT_EQ(distance_squared(c{0, 2}, c{0, 5}), 9);
+  ASSERT_EQ(distance_squared(c{5, 2}, c{1, 2}), 16);
+}
+
+TEST(RelativeDistance, ShouldReturnProperOrdering) {
+  ASSERT_EQ(relative_distance_from({3, 4}, {6, 2}, {1, 2}), ordering::equal);
+  ASSERT_EQ(relative_distance_from({4, 4}, {6, 2}, {1, 2}), ordering::lesser);
+  ASSERT_EQ(relative_distance_from({3, 3}, {6, 1}, {1, 2}), ordering::greater);
+}

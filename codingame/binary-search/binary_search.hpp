@@ -25,6 +25,38 @@ inline coordinates middle(const coordinates& top_left,
                      (top_left.y + bottom_right.y) / 2};
 }
 
+enum class ordering : unsigned char {
+  equal = 1,
+  greater = 2,
+  lesser = 4,
+  greater_equal = equal | greater,
+  lesser_equal = equal | lesser
+};
+
+inline size_t distance_squared(const coordinates& left,
+                               const coordinates& right) {
+  auto x = left.x - right.x;
+  auto y = left.y - right.y;
+  return x * x + y * y;
+}
+
+inline ordering relative_distance_from(const coordinates& origin,
+                                       const coordinates& left,
+                                       const coordinates& right) {
+  auto d1 = distance_squared(origin, left);
+  auto d2 = distance_squared(origin, right);
+
+  if (d1 == d2) {
+    return ordering::equal;
+  }
+  else if (d1 < d2) {
+    return ordering::lesser;
+  }
+  else {
+    return ordering::greater;
+  }
+}
+
 enum class temperature { hot, cold, same, unknown };
 inline std::ostream& operator<<(std::ostream& out, temperature t) {
   switch (t) {
