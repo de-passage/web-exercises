@@ -36,9 +36,9 @@ struct box {
   size_t left() const { return top_left.x; }
   size_t right() const { return bottom_right.x; }
 
-  size_t width() const { return bottom() - top(); }
+  size_t height() const { return bottom() - top(); }
 
-  size_t height() const { return right() - left(); }
+  size_t width() const { return right() - left(); }
 
   box left_half() const { return {left(), top(), vertical_center(), bottom()}; }
 
@@ -64,7 +64,7 @@ struct box {
       const coordinates& c) const {
     assert(contains(c));
 
-    if (width() > height()) {
+    if (width() < height()) {
       coordinates new_c{c.x, top() + bottom() - c.y - 1};
       if (top_half().contains(new_c)) {
         return std::make_pair(new_c, top_half());

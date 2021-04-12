@@ -123,6 +123,20 @@ TEST(Symmetry, ShouldFindASymetricPointInAValidBox) {
   ASSERT_EQ(p3.second, b(5, 9, 10, 12));
 }
 
+TEST(BestHalf, ShouldReturnTheLongestSideCutInHalf) {
+  b test_box(6, 0, 12, 12);
+
+  b h = test_box.best_half();
+  auto e1 = b(6, 0, 12, 6);
+  auto e2 = b(6, 6, 12, 12);
+  if (h != e1 && h != e2) {
+    std::cout << "error: value of h (" << h << ") isn't what's expected:\n";
+    std::cout << e1 << " or\n";
+    std::cout << e2 << std::endl;
+    FAIL();
+  }
+}
+
 TEST(Test, ShouldFindTheAnswerInSimpleCase) {
   coordinates solution{2, 3};
   fake_referee ref(test(12, 12, solution, {5, 5}));
