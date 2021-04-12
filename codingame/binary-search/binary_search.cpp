@@ -53,7 +53,7 @@ TEST(Dividing, ShouldSplitBoxesInHalfCorrectly) {
   ASSERT_EQ(test_box.right_half(), b(6, 0, 12, 15));
 }
 
-TEST(Divinding, ShouldProduceOtherHalfOfBoxOnDemand) {
+TEST(Dividing, ShouldProduceOtherHalfOfBoxOnDemand) {
   b test_box(2, 4, 14, 17);
   b left = test_box.left_half();
   b right = test_box.right_half();
@@ -64,4 +64,44 @@ TEST(Divinding, ShouldProduceOtherHalfOfBoxOnDemand) {
   ASSERT_EQ(test_box.other_half(right), left);
   ASSERT_EQ(test_box.other_half(top), bottom);
   ASSERT_EQ(test_box.other_half(bottom), top);
+}
+
+TEST(Dividing, ShouldProduceValidLines) {
+  b test_box(0, 0, 5, 6);
+  ASSERT_EQ(test_box.vertical_line_at(3), b(3, 0, 4, 6));
+  ASSERT_EQ(test_box.horizontal_line_at(2), b(0, 2, 5, 3));
+}
+
+TEST(FakeReferee, ShouldBeConstructibleAndIOAsIntended) {
+  coordinates initial{1, 5};
+  fake_referee ref(test(12, 13, {3, 2}, initial));
+  std::iostream io(&ref);
+
+  size_t w, h, n;
+  io >> w >> h >> n;
+  ASSERT_EQ(w, 12);
+  ASSERT_EQ(h, 13);
+  ASSERT_EQ(n, 0);
+
+  coordinates ini2;
+  io >> ini2;
+
+  ASSERT_EQ(initial, ini2);
+
+  temperature temp;
+  io >> temp;
+
+  ASSERT_EQ(temp, temperature::unknown);
+
+  io << "11 12" << std::endl;
+  io >> temp;
+  ASSERT_EQ(temp, temperature::cold);
+
+  io << ref.underlying_test().solution() << std::endl;
+  io >> temp;
+  ASSERT_EQ(temp, temperature::hot);
+
+  io << ref.underlying_test().current_position() << endl;
+  io >> temp;
+  ASSERT_EQ(temp, temperature::same);
 }
