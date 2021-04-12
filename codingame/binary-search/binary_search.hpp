@@ -33,6 +33,19 @@ enum class ordering : unsigned char {
   lesser_equal = equal | lesser
 };
 
+std::ostream& operator<<(std::ostream& out, ordering ord) {
+  switch (ord) {
+    case ordering::equal:
+      return out << "equal";
+    case ordering::greater:
+      return out << "greater";
+    case ordering::lesser:
+      return out << "lesser";
+    default:
+      return out;
+  }
+}
+
 inline size_t distance_squared(const coordinates& left,
                                const coordinates& right) {
   auto x = left.x - right.x;
@@ -94,6 +107,58 @@ inline temperature get_temperature(std::istream& in) {
   in >> tmp;
   in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
   return tmp;
+}
+
+inline coordinates divide(const coordinates& top_left,
+                          const coordinates& bottom_right) {
+  size_t width = std::max(top_left.x, bottom_right.x) -
+                 std::min(top_left.x, bottom_right.x);
+  size_t height = std::max(top_left.y, bottom_right.y) -
+                  std::min(top_left.y, bottom_right.y);
+
+  if (width >= height) {
+    return {(top_left.x + bottom_right.x) / 2, bottom_right.y};
+  }
+  return {bottom_right.x, (top_left.y + bottom_right.y) / 2};
+}
+
+inline coordinates search(const coordinates& current,
+                          const coordinates& top_left,
+                          const coordinates& bottom_right) {
+  if (current.x < top_left.x || current.y < top_left.y ||
+      current.x >= bottom_right.x || current.y >= bottom_right.y) {
+    // we're out of the search space == last one was cold, we need to go inside,
+    // in the middle of one of the halves
+
+    return middle(top_left, divide(top_left, bottom_right));
+  }
+  // we're inside the search space, we need to jump to the other side of the
+  // dividing line
+
+  auto middle_point = middle(top_left, bottom_right);
+
+  coordinates result = {bottom_right.x + top_left.x - current.x,
+                        top_left.y + bottom_right.y - current.y};
+  if (middle_point.x % 2 == 1 && result.x == middle_point.x + 1) {
+    // we're on the middle vertical line and we haven't explored the whole space
+    if (result.x > top_left.x) {
+      --result.x;
+    }
+    else if (result.x < bottom_right.x) {
+      ++result.x;
+    }
+  }
+  if (middle_point.y % 2 == 1 && result.y == middle_point.y + 1) {
+    // we're on the middle horizontal line
+    if (result.y > top_left.y) {
+      --result.y;
+    }
+    else if (result.y < bottom_right.y) {
+      ++result.y;
+    }
+  }
+
+  return result;
 }
 
 #endif  // GUARD_DPSG_BINARY_SEARCH_HPP

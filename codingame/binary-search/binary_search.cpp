@@ -39,7 +39,12 @@ TEST(DistanceSquared, ShouldComputeCorrectly) {
 }
 
 TEST(RelativeDistance, ShouldReturnProperOrdering) {
-  ASSERT_EQ(relative_distance_from({3, 4}, {6, 2}, {1, 2}), ordering::equal);
+  ASSERT_EQ(relative_distance_from({3, 4}, {5, 2}, {1, 2}), ordering::equal);
   ASSERT_EQ(relative_distance_from({4, 4}, {6, 2}, {1, 2}), ordering::lesser);
   ASSERT_EQ(relative_distance_from({3, 3}, {6, 1}, {1, 2}), ordering::greater);
+}
+
+TEST(DividingLine, ShouldReturnNewBottomRightCoordinates) {
+  ASSERT_EQ(divide({0, 0}, {5, 4}), (c{2, 4}));
+  ASSERT_EQ(divide({0, 0}, {5, 7}), (c{5, 3}));
 }
