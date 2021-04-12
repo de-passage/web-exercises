@@ -81,7 +81,7 @@ TEST(FakeReferee, ShouldBeConstructibleAndIOAsIntended) {
   io >> w >> h >> n;
   ASSERT_EQ(w, 12);
   ASSERT_EQ(h, 13);
-  ASSERT_EQ(n, std::numeric_limits<size_t>::max());
+  ASSERT_EQ(n, test::default_max_tries);
 
   coordinates ini2;
   io >> ini2;
@@ -104,6 +104,23 @@ TEST(FakeReferee, ShouldBeConstructibleAndIOAsIntended) {
   io << ref.underlying_test().current_position() << endl;
   io >> temp;
   ASSERT_EQ(temp, temperature::same);
+}
+
+TEST(Symmetry, ShouldFindASymetricPointInAValidBox) {
+  b test_box(0, 0, 10, 12);
+  c pos{2, 3};
+
+  auto p = test_box.symmetric_point_boxed(pos);
+  ASSERT_EQ(p.first, (c{2, 8}));
+  ASSERT_EQ(p.second, b(0, 6, 10, 12));
+
+  auto p2 = p.second.symmetric_point_boxed(p.first);
+  ASSERT_EQ(p2.first, (c{7, 8}));
+  ASSERT_EQ(p2.second, b(5, 6, 10, 12));
+
+  auto p3 = p2.second.symmetric_point_boxed(p2.first);
+  ASSERT_EQ(p3.first, (c{7, 9}));
+  ASSERT_EQ(p3.second, b(5, 9, 10, 12));
 }
 
 TEST(Test, ShouldFindTheAnswerInSimpleCase) {

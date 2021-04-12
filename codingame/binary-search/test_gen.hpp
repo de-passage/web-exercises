@@ -10,12 +10,12 @@
 
 class test {
  public:
-  inline explicit test(
-      size_t width,
-      size_t height,
-      coordinates solution,
-      coordinates position,
-      size_t allowed_tries = std::numeric_limits<size_t>::max())
+  constexpr static size_t default_max_tries = 1000;
+  inline explicit test(size_t width,
+                       size_t height,
+                       coordinates solution,
+                       coordinates position,
+                       size_t allowed_tries = default_max_tries)
       : _height{height},
         _width{width},
         _position{position},

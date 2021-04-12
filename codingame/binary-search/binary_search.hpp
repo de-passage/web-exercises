@@ -60,18 +60,19 @@ struct box {
     return c.x >= left() && c.x < right() && c.y >= top() && c.y < bottom();
   }
 
-  std::pair<coordinates, box> symetric_point_boxed(const coordinates& c) const {
+  std::pair<coordinates, box> symmetric_point_boxed(
+      const coordinates& c) const {
     assert(contains(c));
 
-    if (width() < height()) {
-      coordinates new_c{c.x, top() + bottom() - c.y};
+    if (width() > height()) {
+      coordinates new_c{c.x, top() + bottom() - c.y - 1};
       if (top_half().contains(new_c)) {
         return std::make_pair(new_c, top_half());
       }
       return std::make_pair(new_c, bottom_half());
     }
 
-    coordinates new_c{left() + right() - c.x, c.y};
+    coordinates new_c{left() + right() - c.x - 1, c.y};
     if (left_half().contains(new_c)) {
       return std::make_pair(new_c, left_half());
     }
@@ -266,7 +267,7 @@ coordinates search_by_rectangles(std::istream& in, std::ostream& out) {
     in >> temp;
 
     if (!searching) {
-      auto p = search_space.symetric_point_boxed(current);
+      auto p = search_space.symmetric_point_boxed(current);
       current = p.first;
       attempt = p.second;
       searching = true;
@@ -276,8 +277,8 @@ coordinates search_by_rectangles(std::istream& in, std::ostream& out) {
         // we're on the right spot, let's assume that the box is ok
         search_space = attempt;
 
-        // we now want to find the new middle, on the symetry
-        auto p = search_space.symetric_point_boxed(current);
+        // we now want to find the new middle, on the symmetry
+        auto p = search_space.symmetric_point_boxed(current);
         current = p.first;
         attempt = p.second;
         searching = true;
