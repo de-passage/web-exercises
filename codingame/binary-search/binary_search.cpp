@@ -52,3 +52,16 @@ TEST(Dividing, ShouldSplitBoxesInHalfCorrectly) {
   ASSERT_EQ(test_box.left_half(), b(0, 0, 6, 15));
   ASSERT_EQ(test_box.right_half(), b(6, 0, 12, 15));
 }
+
+TEST(Divinding, ShouldProduceOtherHalfOfBoxOnDemand) {
+  b test_box(2, 4, 14, 17);
+  b left = test_box.left_half();
+  b right = test_box.right_half();
+  b top = test_box.top_half();
+  b bottom = test_box.bottom_half();
+
+  ASSERT_EQ(test_box.other_half(left), right);
+  ASSERT_EQ(test_box.other_half(right), left);
+  ASSERT_EQ(test_box.other_half(top), bottom);
+  ASSERT_EQ(test_box.other_half(bottom), top);
+}

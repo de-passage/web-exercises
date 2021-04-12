@@ -60,9 +60,29 @@ struct box {
     return c.x >= left() && c.x < right() && c.y >= top() && c.y < bottom();
   }
 
-  coordinates symetric(const coordinates& c) const {
+  std::pair<coordinates, box> symetric_point_boxed(const coordinates& c) const {
     assert(contains(c));
-    return {left() + right() - c.x, top() + bottom() - c.y};
+
+    if (width() < height()) {
+      coordinates new_c{c.x, top() + bottom() - c.y};
+      if (top_half().contains(new_c)) {
+        return std::make_pair(new_c, top_half());
+      }
+      return std::make_pair(new_c, bottom_half());
+    }
+
+    coordinates new_c{left() + right() - c.x, c.y};
+    if (left_half().contains(new_c)) {
+      return std::make_pair(new_c, left_half());
+    }
+    return std::make_pair(new_c, right_half());
+  }
+
+  box best_half() const {
+    if (width() < height()) {
+      return bottom_half();
+    }
+    return right_half();
   }
 
   box other_half(box other) const {
@@ -85,7 +105,7 @@ struct box {
       other.top() = top();
     }
     else if (other.bottom() < bottom()) {
-      other.top() = bottom();
+      other.top() = other.bottom();
       other.bottom() = bottom();
     }
 
@@ -94,6 +114,20 @@ struct box {
 
   coordinates center() const {
     return {vertical_center(), horizontal_center()};
+  }
+
+  box vertical_line_at(size_t x) const {
+    box result{*this};
+    result.left() = x;
+    result.right() = x + 1;
+    return result;
+  }
+
+  box horizontal_line_at(size_t y) const {
+    box result{*this};
+    result.top() = y;
+    result.bottom() = y + 1;
+    return result;
   }
 
   friend bool operator==(const box& left, const box& right) {
@@ -209,8 +243,10 @@ inline temperature get_temperature(std::istream& in) {
   return tmp;
 }
 
-coordinates search(std::istream& in, std::ostream& out) {
-  size_t h, w, n;
+coordinates search_by_rectangles(std::istream& in, std::ostream& out) {
+  size_t h{};
+  size_t w{};
+  size_t n{};
 
   in >> w >> h >> n;
 
@@ -218,11 +254,10 @@ coordinates search(std::istream& in, std::ostream& out) {
 
   box attempt{search_space};
 
-  coordinates current;
+  coordinates current{};
 
   in >> current;
-
-  coordinates last;
+  coordinates last{current};
 
   temperature temp;
   bool searching = false;
@@ -230,8 +265,10 @@ coordinates search(std::istream& in, std::ostream& out) {
   while (search_space.width() > 1 || search_space.height() > 1) {
     in >> temp;
 
-    if (searching) {
-      current = search_space.symetric(current);
+    if (!searching) {
+      auto p = search_space.symetric_point_boxed(current);
+      current = p.first;
+      attempt = p.second;
       searching = true;
     }
     else {
@@ -239,13 +276,31 @@ coordinates search(std::istream& in, std::ostream& out) {
         // we're on the right spot, let's assume that the box is ok
         search_space = attempt;
 
-        // we now want to find the new middle
-        if (search_space.width() > search_space.height()) {
-        }
+        // we now want to find the new middle, on the symetry
+        auto p = search_space.symetric_point_boxed(current);
+        current = p.first;
+        attempt = p.second;
+        searching = true;
       }
       else if (temp == temperature::cold) {
+        search_space = search_space.other_half(attempt);
+        attempt = search_space.best_half();
+        current = attempt.center();
+        searching = false;
       }
       else if (temp == temperature::same) {
+        if (current.x == last.x) {
+          search_space =
+              search_space.vertical_line_at((current.y + last.y) / 2);
+        }
+        else {
+          search_space =
+              search_space.horizontal_line_at((current.x + last.x) / 2);
+        }
+
+        attempt = search_space.best_half();
+        current = attempt.center();
+        searching = false;
       }
     }
 
