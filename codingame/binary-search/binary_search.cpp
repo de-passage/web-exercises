@@ -8,6 +8,7 @@
 using namespace std;
 using ss = stringstream;
 using c = coordinates;
+using b = box;
 
 TEST(Output, ShouldPrintCoordinatesCorrectly) {
   ss in;
@@ -44,7 +45,10 @@ TEST(RelativeDistance, ShouldReturnProperOrdering) {
   ASSERT_EQ(relative_distance_from({3, 3}, {6, 1}, {1, 2}), ordering::greater);
 }
 
-TEST(DividingLine, ShouldReturnNewBottomRightCoordinates) {
-  ASSERT_EQ(divide({0, 0}, {5, 4}), (c{2, 4}));
-  ASSERT_EQ(divide({0, 0}, {5, 7}), (c{5, 3}));
+TEST(Dividing, ShouldSplitBoxesInHalfCorrectly) {
+  b test_box(0, 0, 12, 15);
+  ASSERT_EQ(test_box.top_half(), b(0, 0, 12, 7));
+  ASSERT_EQ(test_box.bottom_half(), b(0, 7, 12, 15));
+  ASSERT_EQ(test_box.left_half(), b(0, 0, 6, 15));
+  ASSERT_EQ(test_box.right_half(), b(6, 0, 12, 15));
 }

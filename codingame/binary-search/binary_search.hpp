@@ -1,5 +1,6 @@
 #ifndef GUARD_DPSG_BINARY_SEARCH_HPP
 #define GUARD_DPSG_BINARY_SEARCH_HPP
+#include <cassert>
 #include <iostream>
 
 struct coordinates {
@@ -15,8 +16,109 @@ struct coordinates {
     return !(left == right);
   }
 };
+
+// Top left corner included, bottom right excluded
+struct box {
+  box() = default;
+  box(size_t min_x, size_t min_y, size_t max_x, size_t max_y)
+      : top_left{min_x, min_y}, bottom_right{max_x, max_y} {
+    assert(left() < right());
+    assert(top() < bottom());
+  }
+
+  size_t& top() { return top_left.y; }
+  size_t& bottom() { return bottom_right.y; }
+  size_t& left() { return top_left.x; }
+  size_t& right() { return bottom_right.x; }
+
+  size_t top() const { return top_left.y; }
+  size_t bottom() const { return bottom_right.y; }
+  size_t left() const { return top_left.x; }
+  size_t right() const { return bottom_right.x; }
+
+  size_t width() const { return bottom() - top(); }
+
+  size_t height() const { return right() - left(); }
+
+  box left_half() const { return {left(), top(), vertical_center(), bottom()}; }
+
+  box right_half() const {
+    return {vertical_center(), top(), right(), bottom()};
+  }
+
+  box bottom_half() const {
+    return {left(), horizontal_center(), right(), bottom()};
+  }
+
+  box top_half() const { return {left(), top(), right(), horizontal_center()}; }
+
+  size_t vertical_center() const { return (left() + right()) / 2; }
+
+  size_t horizontal_center() const { return (top() + bottom()) / 2; }
+
+  bool contains(const coordinates& c) const {
+    return c.x >= left() && c.x < right() && c.y >= top() && c.y < bottom();
+  }
+
+  coordinates symetric(const coordinates& c) const {
+    assert(contains(c));
+    return {left() + right() - c.x, top() + bottom() - c.y};
+  }
+
+  box other_half(box other) const {
+    assert(width() >= other.width());
+    assert(height() >= other.height());
+    assert((top() == other.top() && bottom() == other.bottom()) ||
+           (left() == other.left() && right() == other.right()));
+
+    if (other.right() < right()) {
+      other.left() = other.right();
+      other.right() = right();
+    }
+    else if (other.left() > left()) {
+      other.right() = other.left();
+      other.left() = left();
+    }
+
+    if (other.top() > top()) {
+      other.bottom() = other.top();
+      other.top() = top();
+    }
+    else if (other.bottom() < bottom()) {
+      other.top() = bottom();
+      other.bottom() = bottom();
+    }
+
+    return other;
+  }
+
+  coordinates center() const {
+    return {vertical_center(), horizontal_center()};
+  }
+
+  friend bool operator==(const box& left, const box& right) {
+    return left.top_left == right.top_left &&
+           left.bottom_right == right.bottom_right;
+  }
+
+  friend bool operator!=(const box& left, const box& right) {
+    return !(left == right);
+  }
+
+ private:
+  coordinates top_left;
+  coordinates bottom_right;
+};
+
 inline std::ostream& operator<<(std::ostream& out, const coordinates& coords) {
   return out << coords.x << " " << coords.y;
+}
+inline std::istream& operator>>(std::istream& in, coordinates& coords) {
+  return in >> coords.x >> coords.y;
+}
+inline std::ostream& operator<<(std::ostream& out, const box& box) {
+  return out << "{" << box.left() << ", " << box.top() << ", " << box.right()
+             << ", " << box.bottom() << "}";
 }
 
 inline coordinates middle(const coordinates& top_left,
@@ -62,12 +164,10 @@ inline ordering relative_distance_from(const coordinates& origin,
   if (d1 == d2) {
     return ordering::equal;
   }
-  else if (d1 < d2) {
+  if (d1 < d2) {
     return ordering::lesser;
   }
-  else {
-    return ordering::greater;
-  }
+  return ordering::greater;
 }
 
 enum class temperature { hot, cold, same, unknown };
@@ -109,56 +209,51 @@ inline temperature get_temperature(std::istream& in) {
   return tmp;
 }
 
-inline coordinates divide(const coordinates& top_left,
-                          const coordinates& bottom_right) {
-  size_t width = std::max(top_left.x, bottom_right.x) -
-                 std::min(top_left.x, bottom_right.x);
-  size_t height = std::max(top_left.y, bottom_right.y) -
-                  std::min(top_left.y, bottom_right.y);
+coordinates search(std::istream& in, std::ostream& out) {
+  size_t h, w, n;
 
-  if (width >= height) {
-    return {(top_left.x + bottom_right.x) / 2, bottom_right.y};
-  }
-  return {bottom_right.x, (top_left.y + bottom_right.y) / 2};
-}
+  in >> w >> h >> n;
 
-inline coordinates search(const coordinates& current,
-                          const coordinates& top_left,
-                          const coordinates& bottom_right) {
-  if (current.x < top_left.x || current.y < top_left.y ||
-      current.x >= bottom_right.x || current.y >= bottom_right.y) {
-    // we're out of the search space == last one was cold, we need to go inside,
-    // in the middle of one of the halves
+  box search_space{0, 0, w, h};
 
-    return middle(top_left, divide(top_left, bottom_right));
-  }
-  // we're inside the search space, we need to jump to the other side of the
-  // dividing line
+  box attempt{search_space};
 
-  auto middle_point = middle(top_left, bottom_right);
+  coordinates current;
 
-  coordinates result = {bottom_right.x + top_left.x - current.x,
-                        top_left.y + bottom_right.y - current.y};
-  if (middle_point.x % 2 == 1 && result.x == middle_point.x + 1) {
-    // we're on the middle vertical line and we haven't explored the whole space
-    if (result.x > top_left.x) {
-      --result.x;
+  in >> current;
+
+  coordinates last;
+
+  temperature temp;
+  bool searching = false;
+
+  while (search_space.width() > 1 || search_space.height() > 1) {
+    in >> temp;
+
+    if (searching) {
+      current = search_space.symetric(current);
+      searching = true;
     }
-    else if (result.x < bottom_right.x) {
-      ++result.x;
+    else {
+      if (temp == temperature::hot) {
+        // we're on the right spot, let's assume that the box is ok
+        search_space = attempt;
+
+        // we now want to find the new middle
+        if (search_space.width() > search_space.height()) {
+        }
+      }
+      else if (temp == temperature::cold) {
+      }
+      else if (temp == temperature::same) {
+      }
     }
-  }
-  if (middle_point.y % 2 == 1 && result.y == middle_point.y + 1) {
-    // we're on the middle horizontal line
-    if (result.y > top_left.y) {
-      --result.y;
-    }
-    else if (result.y < bottom_right.y) {
-      ++result.y;
-    }
+
+    out << current << std::endl;
+    last = current;
   }
 
-  return result;
+  return {search_space.left(), search_space.top()};
 }
 
 #endif  // GUARD_DPSG_BINARY_SEARCH_HPP
