@@ -365,6 +365,10 @@ coordinates search_by_rectangles(std::istream& in, std::ostream& out) {
         searching = false;
       }
       else if (temp == temperature::same) {
+        if (search_space.width() == 1 || search_space.height() == 1) {
+          current = search_space.center();
+        }
+        else {
         if (current.x == last.x) {
           search_space =
               search_space.vertical_line_at((current.y + last.y) / 2);

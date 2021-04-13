@@ -207,3 +207,12 @@ TEST(SearchByRectangles, ShouldFindTheAnswerInSimpleCase) {
   auto result = search_by_rectangles(io, io);
   ASSERT_EQ(result, solution);
 }
+
+TEST(SearchByRectangles, ShouldSucceed_3) {
+  c solution{0, 1};
+  test t(8000, 8000, solution, {3200, 2100}, 41);  // Need 31 to pass Codingame
+  fake_referee ref(t);
+  std::iostream io(&ref);
+
+  ASSERT_EQ(search_by_rectangles(io, io), solution);
+}
