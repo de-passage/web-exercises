@@ -129,6 +129,44 @@ TEST(Symmetry, ShouldFindASymetricPointInAValidBox) {
   ASSERT_EQ(p3.second, b(5, 9, 10, 12));
 }
 
+TEST(Symmetry, ShouldFindASymmetryInALine) {
+  b b1(1, 1, 5, 2);
+  c p1{1, 1};
+  c p2{4, 1};
+  c p3{2, 1};
+  c p4{3, 1};
+  ASSERT_EQ(b1.symmetric_point_boxed(p1).first, p2);
+  ASSERT_EQ(b1.symmetric_point_boxed(p2).first, p1);
+  ASSERT_EQ(b1.symmetric_point_boxed(p3).first, p4);
+  ASSERT_EQ(b1.symmetric_point_boxed(p4).first, p3);
+
+  b b2(22, 23, 23, 27);
+  c p5{22, 23};
+  c p6{22, 24};
+  c p7{22, 25};
+  c p8{22, 26};
+  ASSERT_EQ(b2.symmetric_point_boxed(p5).first, p8);
+  ASSERT_EQ(b2.symmetric_point_boxed(p6).first, p7);
+  ASSERT_EQ(b2.symmetric_point_boxed(p7).first, p6);
+  ASSERT_EQ(b2.symmetric_point_boxed(p8).first, p5);
+}
+
+TEST(Symmetry, ShouldFindASymmetryInASquare) {
+  b b1(22, 22, 24, 24);
+  c p1{22, 22};
+  c p2{23, 22};
+  ASSERT_EQ(b1.symmetric_point_boxed(p1).first, p2);
+  ASSERT_EQ(b1.symmetric_point_boxed(p2).first, p1);
+
+  b b2(21, 21, 24, 24);
+  c p3{21, 21};
+  c p4{23, 21};
+  c p5{22, 21};
+  ASSERT_EQ(b2.symmetric_point_boxed(p3).first, p4);
+  ASSERT_EQ(b2.symmetric_point_boxed(p4).first, p3);
+  ASSERT_EQ(b2.symmetric_point_boxed(p5).first, p5);
+}
+
 TEST(BestHalf, ShouldReturnTheLongestSideCutInHalf) {
   b test_box(6, 0, 12, 12);
 
@@ -154,6 +192,11 @@ TEST(SearchByRectangles, ShouldSucceed_1) {
 
 TEST(SearchByRectangles, ShouldSucceed_2) {
   c solution{0, 1};
+  test t(15, 15, solution, {3, 6}, 12);
+  fake_referee ref(t);
+  std::iostream io(&ref);
+
+  ASSERT_EQ(search_by_rectangles(io, io), solution);
 }
 
 TEST(SearchByRectangles, ShouldFindTheAnswerInSimpleCase) {

@@ -2,6 +2,7 @@
 #define GUARD_DPSG_BINARY_SEARCH_HPP
 #include <cassert>
 #include <iostream>
+#include <sstream>
 
 struct coordinates {
   size_t x;
@@ -22,8 +23,18 @@ struct box {
   box() = default;
   box(size_t min_x, size_t min_y, size_t max_x, size_t max_y)
       : top_left{min_x, min_y}, bottom_right{max_x, max_y} {
-    assert(left() < right());
-    assert(top() < bottom());
+    if (left() >= right()) {
+      std::stringstream fmt;
+      fmt << "Invalid dimensions, left(" << left() << ") >= right(" << right()
+          << ")";
+      throw std::invalid_argument(fmt.str());
+    }
+    if (top() >= bottom()) {
+      std::stringstream fmt;
+      fmt << "Invalid dimensions, top(" << top() << ") >= bottom(" << bottom()
+          << ")";
+      throw std::invalid_argument(fmt.str());
+    }
   }
 
   size_t& top() { return top_left.y; }
@@ -62,7 +73,10 @@ struct box {
 
   std::pair<coordinates, box> symmetric_point_boxed(
       const coordinates& c) const {
-    assert(contains(c));
+    if (!contains(c)) {
+      throw std::out_of_range(
+          "Trying to find the symmetry of a point outside the box");
+    }
 
     if (width() < height()) {
       coordinates new_c{c.x, top() + bottom() - c.y - 1};
@@ -87,10 +101,21 @@ struct box {
   }
 
   box other_half(box other) const {
-    assert(width() >= other.width());
-    assert(height() >= other.height());
-    assert((top() == other.top() && bottom() == other.bottom()) ||
-           (left() == other.left() && right() == other.right()));
+    if (width() < other.width()) {
+      throw std::invalid_argument("Received box is too wide");
+    }
+    if (height() < other.height()) {
+      throw std::invalid_argument("Received box is too tall");
+    }
+    if (!((top() == other.top() && bottom() == other.bottom()) ||
+          (left() == other.left() && right() == other.right()))) {
+      std::stringstream fmt;
+      fmt << "Received box {" << other.left() << "," << other.top() << ","
+          << other.right() << "," << other.bottom()
+          << "} doesn't have a common dimension with calling object {" << left()
+          << "," << top() << "," << right() << "," << bottom() << "}";
+      throw std::invalid_argument(fmt.str());
+    }
 
     if (other.right() < right()) {
       other.left() = other.right();
@@ -255,6 +280,30 @@ inline temperature get_temperature(std::istream& in) {
   return tmp;
 }
 
+void avoid_center(coordinates& current,
+                  const box& reference,
+                  const coordinates& center) {
+  if (current.x == center.x && reference.width() % 2 == 1) {
+    if (current.x > reference.left()) {
+      current.x--;
+    }
+    else if (current.x < reference.right() - 1) {
+      current.x++;
+    }
+  }
+  if (current.y == center.y && reference.height() % 2 == 1) {
+    if (current.y > reference.top()) {
+      current.y--;
+    }
+    else if (current.y < reference.bottom() - 1) {
+      current.y++;
+    }
+  }
+}
+void avoid_center(coordinates& current, const box& reference) {
+  avoid_center(current, reference, reference.center());
+}
+
 coordinates search_by_rectangles(std::istream& in, std::ostream& out) {
   size_t h{};
   size_t w{};
@@ -281,8 +330,13 @@ coordinates search_by_rectangles(std::istream& in, std::ostream& out) {
       return current;
     }
 
+    // NEED TO FIX: if we're in the middle of a row/column, need to move aside
+    // also need to double check logic for SAME result
+
     if (!searching) {
+      avoid_center(current, search_space);
       auto p = search_space.symmetric_point_boxed(current);
+      last = current;
       current = p.first;
       attempt = p.second;
       searching = true;
@@ -293,15 +347,21 @@ coordinates search_by_rectangles(std::istream& in, std::ostream& out) {
         search_space = attempt;
 
         // we now want to find the new middle, on the symmetry
+        avoid_center(current, search_space);
         auto p = search_space.symmetric_point_boxed(current);
+        last = current;
         current = p.first;
         attempt = p.second;
+
         searching = true;
       }
       else if (temp == temperature::cold) {
         search_space = search_space.other_half(attempt);
         attempt = search_space.best_half();
-        current = attempt.center();
+        auto c = attempt.center();
+        last = current;
+        current = c;
+        avoid_center(current, attempt, c);
         searching = false;
       }
       else if (temp == temperature::same) {
@@ -314,14 +374,20 @@ coordinates search_by_rectangles(std::istream& in, std::ostream& out) {
               search_space.horizontal_line_at((current.x + last.x) / 2);
         }
 
-        attempt = search_space.best_half();
-        current = attempt.center();
+        attempt = search_space;
+        auto c = attempt.center();
+        last = current;
+        current = c;
+        avoid_center(current, attempt, c);
         searching = false;
       }
     }
 
+    if (last == current) {
+      throw std::runtime_error(
+          "Jumping on the same point, this shouldn't happen");
+    }
     out << current << std::endl;
-    last = current;
   }
 
   return {search_space.left(), search_space.top()};
