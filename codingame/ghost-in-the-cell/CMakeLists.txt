@@ -11,3 +11,11 @@ list(TRANSFORM TEST_FILES PREPEND ${TEST_DIRECTORY})
 
 make_test(gitc "${TEST_FILES}")
 target_include_directories(gitc PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}) 
+
+
+set(SIMU_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/simulator/)
+set(SIMU_SRC_FILES simulator.cpp)
+list(TRANSFORM SIMU_SRC_FILES PREPEND ${SIMU_SRC_DIR})
+add_executable(gitc-referee "${SIMU_SRC_FILES}")
+set_compile_options(gitc-referee)
+target_include_directories(gitc-referee PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${SIMU_SRC_DIR})
