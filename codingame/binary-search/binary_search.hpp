@@ -369,29 +369,30 @@ coordinates search_by_rectangles(std::istream& in, std::ostream& out) {
           current = search_space.center();
         }
         else {
-        if (current.x == last.x) {
-          search_space =
-              search_space.vertical_line_at((current.y + last.y) / 2);
-        }
-        else {
-          search_space =
-              search_space.horizontal_line_at((current.x + last.x) / 2);
-        }
+          if (current.x == last.x) {
+            search_space =
+                search_space.vertical_line_at((current.y + last.y) / 2);
+          }
+          else {
+            search_space =
+                search_space.horizontal_line_at((current.x + last.x) / 2);
+          }
 
-        attempt = search_space;
-        auto c = attempt.center();
-        last = current;
-        current = c;
-        avoid_center(current, attempt, c);
-        searching = false;
+          attempt = search_space;
+          auto c = attempt.center();
+          last = current;
+          current = c;
+          avoid_center(current, attempt, c);
+          searching = false;
+        }
       }
-    }
 
-    if (last == current) {
-      throw std::runtime_error(
-          "Jumping on the same point, this shouldn't happen");
+      if (last == current) {
+        throw std::runtime_error(
+            "Jumping on the same point, this shouldn't happen");
+      }
+      out << current << std::endl;
     }
-    out << current << std::endl;
   }
 
   return {search_space.left(), search_space.top()};
