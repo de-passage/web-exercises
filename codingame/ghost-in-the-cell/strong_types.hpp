@@ -45,11 +45,25 @@ namespace strong_types {
 
 #define DPSG_APPLY_TO_UNARY_OPERATORS(f)                           \
   f(boolean_not, !) f(binary_not, ~) f(negate, -) f(positivate, +) \
-      f(dereference, *) f(address_of, &)
+      f(dereference, *) f(address_of, &) f(increment, ++) f(decrement, --)
 
 DPSG_APPLY_TO_BINARY_OPERATORS(DPSG_DEFINE_BINARY_OPERATOR)
 DPSG_APPLY_TO_SELF_ASSIGNING_BINARY_OPERATORS(DPSG_DEFINE_BINARY_OPERATOR)
 DPSG_APPLY_TO_UNARY_OPERATORS(DPSG_DEFINE_UNARY_OPERATOR)
+
+struct post_increment_t {
+  template <class U>
+  constexpr inline decltype(auto) operator()(U& u) const noexcept {
+    return u++;
+  }
+};
+
+struct post_decrement_t {
+  template <class U>
+  constexpr inline decltype(auto) operator()(U& u) const noexcept {
+    return u--;
+  }
+};
 
 namespace detail {
 template <class...>
@@ -189,6 +203,30 @@ struct unary_operation_implementation;
     }                                                                     \
   };
 
+template <class L, class R, class TL>
+struct unary_operation_implementation<post_increment_t, L, R, TL> {
+  template <
+      class T,
+      std::enable_if_t<std::conjunction_v<std::is_same<std::decay_t<T>, L>>,
+                       int> = 0>
+  friend constexpr decltype(auto) operator++(T& left, int) {
+    post_increment_t{}(TL{}(left));
+    return left;
+  }
+};
+
+template <class L, class R, class TL>
+struct unary_operation_implementation<post_decrement_t, L, R, TL> {
+  template <
+      class T,
+      std::enable_if_t<std::conjunction_v<std::is_same<std::decay_t<T>, L>>,
+                       int> = 0>
+  friend constexpr decltype(auto) operator--(T& left, int) {
+    post_decrement_t{}(TL{}(left));
+    return left;
+  }
+};
+
 DPSG_APPLY_TO_BINARY_OPERATORS(
     DPSG_DEFINE_FRIEND_BINARY_OPERATOR_IMPLEMENTATION)
 DPSG_APPLY_TO_SELF_ASSIGNING_BINARY_OPERATORS(
@@ -263,7 +301,12 @@ using binary_bitwise_operators = tuple<binary_and_t,
 using bitwise_operators =
     detail::concat_tuples_t<unary_boolean_operators, binary_boolean_operators>;
 
-using unary_arithmetic_operators = tuple<negate_t, positivate_t>;
+using unary_arithmetic_operators = tuple<negate_t,
+                                         positivate_t,
+                                         increment_t,
+                                         decrement_t,
+                                         post_increment_t,
+                                         post_decrement_t>;
 using binary_arithmetic_operators = tuple<plus_t,
                                           minus_t,
                                           multiplies_t,
