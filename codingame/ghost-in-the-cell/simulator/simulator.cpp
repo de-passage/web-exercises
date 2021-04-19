@@ -65,14 +65,36 @@ struct status {
 };
 
 class game {
+  template <class T>
+  using iterator_vector = std::vector<typename T::iterator>;
+
  public:
   game() = default;
 
   status play_one_turn(const decision_list& player_decisions) {
-    std::vector<troop_container::iterator> troops_at_destination;
-    std::vector<bomb_container::iterator> bombs_at_destination;
+    iterator_vector<troop_container> troops_at_destination;
+    iterator_vector<bomb_container> bombs_at_destination;
 
-    // 1. Move troops
+    ++_turn;
+    _move_troops_and_bombs(troops_at_destination, bombs_at_destination);
+    _execute_player_orders(player_decisions);
+    _produce_new_cyborgs();
+    _resolve_fights(troops_at_destination);
+    _explode_bombs(bombs_at_destination);
+    return _game_status();
+  }
+
+ private:
+  troop_container _troops{};
+  factory_container _factories{};
+  bomb_container _bombs{};
+  player_info players[2]{};
+  int _turn{0};
+
+  void _move_troops_and_bombs(
+      iterator_vector<troop_container>& troops_at_destination,
+      iterator_vector<bomb_container>& bombs_at_destination) {
+    // 1. Move troops and bombs
     for (auto troop_it = _troops.begin(); troop_it != _troops.end();
          ++troop_it) {
       auto& troop = troop_it->second;
@@ -88,7 +110,9 @@ class game {
         bombs_at_destination.push_back(bomb_it);
       }
     }
+  }
 
+  void _execute_player_orders(const decision_list& player_decisions) {
     // 2. execute player orders
     for (const auto& decision : player_decisions) {
       decision.dispatch([] {},
@@ -96,7 +120,9 @@ class game {
                         [](const gitc::increment_production& order) {},
                         [](const gitc::launch_bomb& order) {});
     }
+  }
 
+  void _produce_new_cyborgs() {
     // 3. Produce new cyborgs
     for (auto& factory : _factories) {
       if (factory.second.inactivity > 0) {
@@ -109,7 +135,10 @@ class game {
                  : strength{factory.second.production.value});
       }
     }
+  }
 
+  void _resolve_fights(
+      const iterator_vector<troop_container>& troops_at_destination) {
     // 4. resolve fights
     struct fight {
       strength me_troops{};
@@ -160,7 +189,10 @@ class game {
         factory.owner = winner;
       }
     }
+  }
 
+  void _explode_bombs(
+      const iterator_vector<bomb_container>& bombs_at_destination) {
     // 5. bombs explode
     for (auto& bomb_it : bombs_at_destination) {
       auto& bomb = bomb_it->second;
@@ -179,7 +211,9 @@ class game {
 
       _bombs.erase(bomb_it);
     }
+  }
 
+  status _game_status() const {
     // 6. Check for game end
     // If a player has 0 factories and 0 troops, he loses. otherwise if we reach
     // turn 200, the player with the most cyborgs wins
@@ -208,7 +242,7 @@ class game {
       return end{owner_type::me};
     }
 
-    if (++_turn == 200) {
+    if (_turn == 200) {
       if (by_player[0] > by_player[1]) {
         return end{owner_type::me};
       }
@@ -220,13 +254,6 @@ class game {
 
     return run;
   }
-
- private:
-  troop_container _troops{};
-  factory_container _factories{};
-  bomb_container _bombs{};
-  player_info players[2]{};
-  int _turn{0};
 };
 
 }  // namespace simulator
