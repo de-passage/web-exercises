@@ -1,8 +1,9 @@
+#include "decisions.hpp"
+#include "graph.hpp"
 #include "types.hpp"
 
-#include "decisions.hpp"
-
 #include <stdexcept>
+#include <unordered_set>
 
 namespace simulator {
 
@@ -14,6 +15,7 @@ using gitc::duration;
 using gitc::factory_container;
 using gitc::factory_id;
 using gitc::factory_info;
+using gitc::graph;
 using gitc::owner_type;
 using gitc::production_capacity;
 using gitc::strength;
@@ -69,15 +71,24 @@ class game {
   using iterator_vector = std::vector<typename T::iterator>;
 
  public:
-  game() = default;
+  game(factory_container factories, graph map)
+      : _factories(std::move(factories)), _map(std::move(map)) {}
 
-  status play_one_turn(const decision_list& player_decisions) {
+  status play_one_turn(const decision_list& player_decisions,
+                       const decision_list& opponent_decisions) {
+    if (player_decisions.empty()) {
+      throw std::runtime_error("No orders given for 'me'");
+    }
+    if (opponent_decisions.empty()) {
+      throw std::runtime_error("No orders given for 'opponent'");
+    }
     iterator_vector<troop_container> troops_at_destination;
     iterator_vector<bomb_container> bombs_at_destination;
 
     ++_turn;
     _move_troops_and_bombs(troops_at_destination, bombs_at_destination);
-    _execute_player_orders(player_decisions);
+    _execute_player_orders(owner_type::me, player_decisions);
+    _execute_player_orders(owner_type::opponent, opponent_decisions);
     _produce_new_cyborgs();
     _resolve_fights(troops_at_destination);
     _explode_bombs(bombs_at_destination);
@@ -88,8 +99,11 @@ class game {
   troop_container _troops{};
   factory_container _factories{};
   bomb_container _bombs{};
-  player_info players[2]{};
+  player_info _players[2]{};
   int _turn{0};
+  int _current_troop_id{0};
+  int _current_bomb_id{0};
+  graph _map;
 
   void _move_troops_and_bombs(
       iterator_vector<troop_container>& troops_at_destination,
@@ -112,13 +126,108 @@ class game {
     }
   }
 
-  void _execute_player_orders(const decision_list& player_decisions) {
+  void _execute_player_orders(owner_type player,
+                              const decision_list& player_decisions) {
     // 2. execute player orders
+    std::unordered_set<factory_id> previous_moves;
     for (const auto& decision : player_decisions) {
-      decision.dispatch([] {},
-                        [](const gitc::move& order) {},
-                        [](const gitc::increment_production& order) {},
-                        [](const gitc::launch_bomb& order) {});
+      decision.dispatch(
+          [] { /* wait */ },
+          [&](const gitc::move& order) {
+            // Move order
+            if (previous_moves.count(order.origin) != 0) {
+              throw std::runtime_error(
+                  "Another order was sent from that factory");
+            }
+            previous_moves.insert(order.origin);
+
+            auto t_it = _factories.find(order.destination);
+            auto o_it = _factories.find(order.origin);
+            if (t_it == _factories.end()) {
+              throw std::runtime_error(
+                  "Trying to send troops to a factory that doesn't exist");
+            }
+            if (o_it == _factories.end()) {
+              throw std::runtime_error(
+                  "Trying to send troops from a factory that doesn't exist");
+            }
+            auto& origin = o_it->second;
+            auto target_id = t_it->first;
+            auto origin_id = o_it->first;
+            if (origin.owner != player) {
+              throw std::runtime_error(
+                  "Trying to send troops from a factory controlled by someone "
+                  "else");
+            }
+            if (origin.cyborgs <= order.cyborgs) {
+              throw std::runtime_error(
+                  "Trying to send more troops than available");
+            }
+            auto distance = _map.distance(origin_id, target_id);
+
+            troop_info info{
+                player, origin_id, order.cyborgs, distance, target_id};
+            origin.cyborgs -= order.cyborgs;
+            _troops.emplace(_current_troop_id++, info);
+          },
+          [&](const gitc::increment_production& order) {
+            // Factory production increment order
+            auto it = _factories.find(order.target);
+            if (it == _factories.end()) {
+              throw std::runtime_error(
+                  "Trying to increment the production of a "
+                  "factory that doesn't exist");
+            }
+            auto& factory = it->second;
+            if (factory.cyborgs < 10) {
+              throw std::runtime_error(
+                  "Target factory for production increment has "
+                  "insufficient cyborgs");
+            }
+            if (factory.production >= 3) {
+              throw std::runtime_error(
+                  "Target factory for production increment "
+                  "already at max capacity");
+            }
+            ++factory.production;
+          },
+          [&](const gitc::launch_bomb& order) {
+            // Launch bomb order
+            if ((player == owner_type::me &&
+                 _players[0].available_bombs-- <= 0) ||
+                (player == owner_type::opponent &&
+                 _players[1].available_bombs-- <= 0)) {
+              throw std::runtime_error("Insufficient bombs to send");
+            }
+            if (previous_moves.count(order.origin) != 0) {
+              throw std::runtime_error(
+                  "Another order was sent from that factory");
+            }
+            previous_moves.insert(order.origin);
+
+            auto t_it = _factories.find(order.destination);
+            auto o_it = _factories.find(order.origin);
+            if (t_it == _factories.end()) {
+              throw std::runtime_error(
+                  "Trying to send a bomb to a factory that doesn't exist");
+            }
+            if (o_it == _factories.end()) {
+              throw std::runtime_error(
+                  "Trying to send a bomb from a factory that doesn't exist");
+            }
+            auto& origin = o_it->second;
+            auto target_id = t_it->first;
+            auto origin_id = o_it->first;
+            if (origin.owner != player) {
+              throw std::runtime_error(
+                  "Trying to send a bomb from a factory controlled by someone "
+                  "else");
+            }
+
+            auto distance = _map.distance(origin_id, target_id);
+            bomb_info info{player, origin_id, target_id, distance};
+            _bombs.emplace(_current_bomb_id++, info);
+          });
     }
   }
 
