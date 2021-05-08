@@ -51,7 +51,7 @@ struct status {
     if (_what == type::ended) {
       return _ended.winner;
     }
-    else if (_what == type::forfeited) {
+    if (_what == type::forfeited) {
       return _forfeit.winner;
     }
     throw std::out_of_range("No winner, the game is still running");
@@ -257,7 +257,7 @@ class game {
 
     // Aggregate different troops reaching potentially same factories, and
     // remove them from the list
-    for (auto troop_it : troops_at_destination) {
+    for (const auto& troop_it : troops_at_destination) {
       auto& troop = troop_it->second;
       if (troop.owner == owner_type::me) {
         fights[troop.target].me_troops += troop.cyborgs;
@@ -303,7 +303,7 @@ class game {
   void _explode_bombs(
       const iterator_vector<bomb_container>& bombs_at_destination) {
     // 5. bombs explode
-    for (auto& bomb_it : bombs_at_destination) {
+    for (const auto& bomb_it : bombs_at_destination) {
       auto& bomb = bomb_it->second;
 
       auto factory_it = _factories.find(bomb.target);
@@ -327,7 +327,7 @@ class game {
     // If a player has 0 factories and 0 troops, he loses. otherwise if we reach
     // turn 200, the player with the most cyborgs wins
     strength by_player[2]{strength{0}, strength{0}};
-    for (auto& troop : _troops) {
+    for (const auto& troop : _troops) {
       if (troop.second.owner == owner_type::me) {
         by_player[0] += troop.second.cyborgs;
       }
@@ -335,7 +335,7 @@ class game {
         by_player[1] += troop.second.cyborgs;
       }
     }
-    for (auto& factory : _factories) {
+    for (const auto& factory : _factories) {
       if (factory.second.owner == owner_type::me) {
         by_player[0] += factory.second.cyborgs;
       }
