@@ -76,12 +76,13 @@ int growth_cost(const tree& tree, const player& p) {
   if (tree.size < 0 || tree.size >= 3)
     throw runtime_error("growth_cost called for a tree that cannot grow");
 
-  return growth_cost_base(tree.size) + p.trees_of_size(tree.size);
+  return growth_cost_base(tree.size) + p.trees_of_size(tree.size + 1);
 }
 
 bool tree::is_actionable(const player& player) const {
-  return is_completeable() ? player.sun >= COMPLETE_COST
-                           : player.sun >= growth_cost(*this, player);
+  return !dormant &&
+         (is_completeable() ? player.sun >= COMPLETE_COST
+                            : player.sun >= growth_cost(*this, player));
 }
 
 struct game {
@@ -233,7 +234,8 @@ int avg_distance_of_trees(int cell, const player& player, const game& game) {
 int can_plant(int cell, const player& player, const game& game) {
   for (const auto& tree : player.trees) {
     if (tree.second.cell != cell &&
-        tree.second.size >= game.distance(tree.second.cell, cell)) {
+        tree.second.size >= game.distance(tree.second.cell, cell) &&
+        !tree.second.dormant) {
       return tree.second.cell;
     }
   }
@@ -280,8 +282,17 @@ seed best_spot_to_plant(const game& game) {
   return seed{-1, -1};
 }
 
+int empty_cells_of_value_3(const game& game) {
+  int acc = 0;
+  for (int i = 0; i < CELL_COUNT; ++i) {
+    game.tree_at(
+        i, [&acc](...) { acc++; }, [] {});
+  }
+  return acc;
+}
+
 action decide(const game& game) {
-  if (game.day == DAY_COUNT) {
+  if (game.day == DAY_MAX) {
     if (game.me.can_complete_lifecycle()) {
       vector<tree> v;
       transform(game.me.trees.begin(),
@@ -304,35 +315,45 @@ action decide(const game& game) {
   }
   else {
     auto b = best_spot_to_plant(game);
-    if (b.source >= 0 && game.richness_of(b.source) == 3) {
+
+    // If possible, take the 3 point spots;
+    if (b.source >= 0 && game.richness_of(b.target) == 3) {
       return b;
     }
 
+    // Otherwise find the cheapest action between growing and seeding
     vector<tree> v;
     transform(game.me.trees.begin(),
               game.me.trees.end(),
               back_inserter(v),
               get_second);
+
+    // only consider trees that we can act on
     auto last = remove_if(v.begin(), v.end(), [&](const tree& tree) {
       return !tree.is_actionable(game.me);
     });  // need to check that we'll be able to complete the tree
+
+    // Grow 3 cost first then seeds then rest
     auto it = max_element(
         v.begin(), last, [&](const tree& left, const tree& right) -> bool {
           auto lr = game.richness_of(left);
           auto rr = game.richness_of(right);
+
           if (lr == rr) {
-            return left.size < right.size;
+            return left.size && left.size < right.size;
           }
           return lr < rr;
         });
 
     if (it != last) {
-      if (it->size != TREE_MAX)
+      if (it->size != TREE_MAX) {
         return grow{*it};
+      }
       return complete{*it};
     }
 
-    if (b.source >= 0) {
+    if (b.source >= 0 && game.me.trees_of_size(0) < 1 &&
+        empty_cells_of_value_3(game) < 2) {
       return b;
     }
   }
