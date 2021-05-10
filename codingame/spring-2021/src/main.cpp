@@ -61,6 +61,21 @@ using namespace std;
  * the standard input according to the problem statement.
  **/
 
+template <template <class...> class R,
+          class C,
+          class F,
+          class... Args,
+          class I = decltype(
+              std::declval<F>()(std::declval<typename C::value_type>()))>
+R<I> transform(const C& container, F&& transformer) {
+  R<I> result;
+  std::transform(container.begin(),
+                 container.end(),
+                 std::back_inserter(result),
+                 FWD(transformer));
+  return result;
+}
+
 constexpr int DAY_COUNT = 24;
 constexpr int DAY_MAX = DAY_COUNT - 1;
 constexpr int TREE_MAX = 3;
@@ -94,8 +109,9 @@ struct tree {
   bool is_actionable(const struct player& player) const;
 };
 
+const auto tree_size = [](const auto& t) -> int { return t.second.size; };
 const auto of_size = [](int size) {
-  return [size](const auto& p) { return p.second.size == size; };
+  return [size](const auto& p) { return tree_size(p) == size; };
 };
 
 struct player {
@@ -199,7 +215,7 @@ struct game {
   template <class T, class F>
   auto tree_at(cell_id cell, T&& with_tree, F&& without) const {
     return me.tree_or(cell, FWD(with_tree), [&] {
-      opponent.tree_or(cell, forward<T>(with_tree), forward<F>(without));
+      return opponent.tree_or(cell, forward<T>(with_tree), forward<F>(without));
     });
   }
 
@@ -435,25 +451,36 @@ int shadow_after_turn(cell_id cell, int offset, const game& game) {
   int lookup_direction = OPPOSITE_DIRECTION[sun_direction];
 
   int max_size = 0;
+  cell_id current = cell;
   for (int i = 1; i <= 3; ++i) {
-    auto current = game.move(cell, lookup_direction);
-    int tree_size = game.tree_at(
-        current, [i](const tree& t) { return t.size; }, [] { return 0 });
-    if (tree_size >= i && tree_size > max_size) {
-      max_size = tree_size;
+    current = game.move(current, lookup_direction);
+    int size = game.tree_at(current, tree_size, [] { return 0; });
+    if (size >= i && size > max_size) {
+      max_size = size;
     }
   }
-  return tree_size;
+  return max_size;
+}
+
+// Returns the tree sizes that this tree shadows
+vector<int> shadowed_after(const tree& tr, int offset, const game& game) {
+  vector<int> result;
+  cell_id current = tr.cell;
+  int sun_direction = game.sun_after(offset);
+  for (int i = 1; i <= tr.size; ++i) {
+    current = game.move(current, sun_direction);
+    int target_size = game.tree_at(current, tree_size, [] { return 0; });
+    if (target_size <= tr.size) {
+      result.push_back(target_size);
+    }
+  }
+  return result;
 }
 
 action decide(const game& game) {
   if (game.day == DAY_MAX) {
     if (game.me.can_complete_lifecycle()) {
-      vector<tree> v;
-      transform(game.me.trees.begin(),
-                game.me.trees.end(),
-                back_inserter(v),
-                get_second);
+      vector<tree> v = transform<vector>(game.me.trees, get_second);
       auto last = remove_if(v.begin(), v.end(), [](const tree& t) {
         return !t.is_completeable();
       });
@@ -477,11 +504,7 @@ action decide(const game& game) {
     }
 
     // Otherwise find the cheapest action between growing and seeding
-    vector<tree> v;
-    transform(game.me.trees.begin(),
-              game.me.trees.end(),
-              back_inserter(v),
-              get_second);
+    vector<tree> v = transform<vector>(game.me.trees, get_second);
 
     // only consider trees that we can act on
     auto last = remove_if(v.begin(), v.end(), [&](const tree& tree) {
