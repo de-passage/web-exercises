@@ -71,7 +71,7 @@ constexpr int GROW_COST_BASE[3] = {1, 3, 7};
 constexpr int growth_cost_base(int size) {
   return GROW_COST_BASE[size];
 }
-// constexpr int OPPOSITE_DIRECTION[6] = {3, 4, 5, 0, 1, 2};
+constexpr int OPPOSITE_DIRECTION[6] = {3, 4, 5, 0, 1, 2};
 
 using cell_id = strong_id<struct cell>;
 constexpr cell_id invalid_cell{-1};
@@ -203,7 +203,9 @@ struct game {
     });
   }
 
-  int sun_direction() const { return day % 6; }
+  int sun_direction() const { return sun_after(0); }
+
+  int sun_after(int offset) const { return (day + offset) % 6; }
 
   int distance(cell_id left, cell_id right) const {
     return _distance_lookup[left.value][right.value];
@@ -427,7 +429,22 @@ int empty_cells_of_value_3(const game& game) {
   return acc;
 }
 
-int is_shaded_after_turn(int cell, int offset) {}
+// Returns shade size at requested turn on this cell
+int shadow_after_turn(cell_id cell, int offset, const game& game) {
+  int sun_direction = game.sun_after(offset);
+  int lookup_direction = OPPOSITE_DIRECTION[sun_direction];
+
+  int max_size = 0;
+  for (int i = 1; i <= 3; ++i) {
+    auto current = game.move(cell, lookup_direction);
+    int tree_size = game.tree_at(
+        current, [i](const tree& t) { return t.size; }, [] { return 0 });
+    if (tree_size >= i && tree_size > max_size) {
+      max_size = tree_size;
+    }
+  }
+  return tree_size;
+}
 
 action decide(const game& game) {
   if (game.day == DAY_MAX) {
