@@ -9,6 +9,51 @@
 
 #define FWD(...) ::std::forward<decltype(__VA_ARGS__)>(__VA_ARGS__)
 
+#include "strong_types.hpp"
+
+namespace st = dpsg::strong_types;
+
+template <class T, class ValueType, class... Ts>
+struct value_impl : st::derive_t<T, Ts...> {
+  using real_type = T;
+  using value_type = ValueType;
+  value_type value;
+
+ protected:
+  constexpr explicit value_impl(value_type type) noexcept
+      : value{std::move(type)} {}
+
+ public:
+  constexpr value_impl() noexcept = default;
+  constexpr value_impl(real_type lower) noexcept
+      : value{std::move(lower).value} {}
+};
+
+template <class Tag>
+struct strong_id : value_impl<strong_id<Tag>,
+                              int,
+                              st::comparable,
+                              st::comparable_with<int>> {
+  constexpr explicit strong_id(int id = -1)
+      : value_impl<strong_id<Tag>,
+                   int,
+                   st::comparable,
+                   st::comparable_with<int>>{id} {}
+};
+
+namespace dpsg {
+namespace strong_types {
+template <class T>
+struct hash;
+template <class T>
+struct hash<strong_id<T>> {
+  constexpr auto operator()(strong_id<T> id) const {
+    return ::std::hash<int>()(id.value);
+  }
+};
+}  // namespace strong_types
+}  // namespace dpsg
+
 using namespace std;
 
 /**
@@ -28,13 +73,19 @@ constexpr int growth_cost_base(int size) {
 }
 // constexpr int OPPOSITE_DIRECTION[6] = {3, 4, 5, 0, 1, 2};
 
+using cell_id = strong_id<struct cell>;
+constexpr cell_id invalid_cell{-1};
 struct cell {
   int richness;
-  int neighbors[NEIGHBOR_COUNT]{-1};
+  cell_id neighbors[NEIGHBOR_COUNT];
 };
 
+std::string to_string(cell_id id) {
+  return to_string(id.value);
+}
+
 struct tree {
-  int cell;
+  cell_id cell{-1};
   int size;
   bool mine;
   bool dormant;
@@ -51,13 +102,13 @@ struct player {
   int score;
   int sun;
 
-  using tree_container = unordered_map<int, tree>;
+  using tree_container = unordered_map<cell_id, tree, st::hash<cell_id>>;
   tree_container trees{};
 
   bool can_complete_lifecycle() const { return sun >= 4; }
 
   template <class T, class F>
-  auto tree_or(int cell, T&& with_tree, F&& without) const {
+  auto tree_or(cell_id cell, T&& with_tree, F&& without) const {
     auto it = trees.find(cell);
     if (it != trees.end()) {
       return FWD(with_tree)(*it);
@@ -89,7 +140,7 @@ bool tree::is_actionable(const player& player) const {
 template <class Source>
 struct directional_iterator {
  private:
-  constexpr static int invalid_value = -1;
+  constexpr static cell_id invalid_value{};
 
  public:
   using value_type =
@@ -101,7 +152,7 @@ struct directional_iterator {
 
   constexpr directional_iterator() = default;
   constexpr explicit directional_iterator(const struct game& game,
-                                          int value,
+                                          cell_id value,
                                           int direction)
       : _game{&game},
         _current{value >= 0 && value < CELL_COUNT && direction >= 0 &&
@@ -110,19 +161,14 @@ struct directional_iterator {
                      : invalid_value},
         _direction{direction} {}
 
-  reference operator*() const { return _game.cells[_current]; }
-  pointer operator->() const { return _game.cells + _current; }
+  reference operator*() const;
+  pointer operator->() const;
 
-  directional_iterator& operator++() {
-    if (_current == invalid_value || _game == nullptr)
-      throw std::out_of_range("Invalid iterator dereferenced");
-    _current = _game.cells[_current];
-    return *this;
-  }
+  directional_iterator& operator++();
 
  private:
   const struct game* _game{nullptr};
-  int _current{invalid_value};
+  cell_id _current{invalid_value};
   int _direction{0};
 };
 
@@ -135,22 +181,23 @@ struct game {
   player opponent;
   bool opponent_waiting;
 
-  cell& cell_at(int cell) {
+  cell& cell_at(cell_id cell) {
     return cell >= 0 && cell < CELL_COUNT
-               ? cells[static_cast<size_t>(cell)]
-               : throw std::out_of_range("invalid cell id");
+               ? cells[static_cast<size_t>(cell.value)]
+               : throw std::out_of_range("invalid cell id " +
+                                         to_string(cell.value));
   }
 
-  const cell& cell_at(int cell) const {
+  const cell& cell_at(cell_id cell) const {
     return const_cast<game*>(this)->cell_at(cell);
   }
 
   int richness_of(const tree& t) const { return cell_at(t.cell).richness; }
 
-  int richness_of(int cell) const { return cell_at(cell).richness; }
+  int richness_of(cell_id cell) const { return cell_at(cell).richness; }
 
   template <class T, class F>
-  auto tree_at(int cell, T&& with_tree, F&& without) const {
+  auto tree_at(cell_id cell, T&& with_tree, F&& without) const {
     return me.tree_or(cell, FWD(with_tree), [&] {
       opponent.tree_or(cell, forward<T>(with_tree), forward<F>(without));
     });
@@ -158,11 +205,11 @@ struct game {
 
   int sun_direction() const { return day % 6; }
 
-  int distance(int left, int right) const {
-    return _distance_lookup[left][right];
+  int distance(cell_id left, cell_id right) const {
+    return _distance_lookup[left.value][right.value];
   }
 
-  int move(int source, int direction) const {
+  cell_id move(cell_id source, int direction) const {
     return direction >= 0 && direction < 6
                ? cell_at(source).neighbors[static_cast<size_t>(direction)]
                : throw std::out_of_range("invalid direction");
@@ -170,10 +217,10 @@ struct game {
 
   using iterator = directional_iterator<game>;
   using const_iterator = directional_iterator<const game>;
-  iterator begin(int cell, int direction) {
+  iterator begin(cell_id cell, int direction) {
     return iterator{*this, cell, direction};
   }
-  const_iterator begin(int cell, int direction) const {
+  const_iterator begin(cell_id cell, int direction) const {
     return const_iterator{*this, cell, direction};
   }
   iterator end() { return iterator{}; }
@@ -181,9 +228,9 @@ struct game {
 
  private:
   int _distance_lookup[37][37]{{-1}};
-  int _compute_distance(int start, int end) {
-    queue<pair<int, int>> to_explore;
-    unordered_set<int> explored;
+  int _compute_distance(cell_id start, cell_id end) {
+    queue<pair<cell_id, int>> to_explore;
+    unordered_set<cell_id, st::hash<cell_id>> explored;
     to_explore.push({start, 0});
 
     while (!to_explore.empty()) {
@@ -194,14 +241,14 @@ struct game {
         return c.second;
 
       for (int i = 0; i < NEIGHBOR_COUNT; ++i) {
-        int n = move(c.first, i);
-        if (explored.count(n))
+        cell_id n = move(c.first, i);
+        if (n < 0 || explored.count(n))
           continue;
         to_explore.push({n, c.second + 1});
       }
     }
-    throw runtime_error("didn't find a path between " + to_string(start) + " " +
-                        to_string(end));
+    throw runtime_error("didn't find a path between " + to_string(start.value) +
+                        " " + to_string(end.value));
   }
 
  public:
@@ -212,27 +259,46 @@ struct game {
       _distance_lookup[i][i] = 0;
       for (int j = i + 1; j < CELL_COUNT; ++j) {
         _distance_lookup[i][j] = _distance_lookup[j][i] =
-            _compute_distance(i, j);
+            _compute_distance(cell_id(i), cell_id(j));
       }
     }
   }
 };
 
+template <class T>
+typename directional_iterator<T>::reference directional_iterator<T>::operator*()
+    const {
+  return _game->cells[_current.value];
+}
+template <class T>
+typename directional_iterator<T>::pointer directional_iterator<T>::operator->()
+    const {
+  return &_game->cells[_current.value];
+}
+
+template <class T>
+directional_iterator<T>& directional_iterator<T>::operator++() {
+  if (_current == invalid_value || _game == nullptr)
+    throw std::out_of_range("Invalid iterator dereferenced");
+  _current = _game->cells[_current.value];
+  return *this;
+}
+
 struct wait_t {
 } constexpr wait{};
 struct complete {
   constexpr explicit complete(const tree& t) : tree{t.cell} {}
-  int tree;
+  cell_id tree;
 };
 struct grow {
   constexpr explicit grow(const tree& t) : cell{t.cell} {}
-  int cell;
+  cell_id cell;
 };
 struct seed {
-  constexpr explicit seed(int origin, int cell)
+  constexpr explicit seed(cell_id origin, cell_id cell)
       : source{origin}, target{cell} {}
-  int source;
-  int target;
+  cell_id source;
+  cell_id target;
 };
 
 struct action {
@@ -287,7 +353,9 @@ ostream& operator<<(ostream& out, const action& action) {
 
 const auto get_second = [](const auto& p) { return p.second; };
 
-int avg_distance_of_trees(int cell, const player& player, const game& game) {
+int avg_distance_of_trees(cell_id cell,
+                          const player& player,
+                          const game& game) {
   if (player.trees.size() == 0) {
     return 0;
   }
@@ -299,7 +367,7 @@ int avg_distance_of_trees(int cell, const player& player, const game& game) {
   return acc / static_cast<int>(player.trees.size());
 }
 
-int can_plant(int cell, const player& player, const game& game) {
+cell_id can_plant(cell_id cell, const player& player, const game& game) {
   for (const auto& tree : player.trees) {
     if (tree.second.cell != cell &&
         tree.second.size >= game.distance(tree.second.cell, cell) &&
@@ -307,22 +375,22 @@ int can_plant(int cell, const player& player, const game& game) {
       return tree.second.cell;
     }
   }
-  return -1;
+  return invalid_cell;
 }
 
 seed best_spot_to_plant(const game& game) {
   if (game.me.can_plant()) {
-    vector<tuple<int /*cell*/,
+    vector<tuple<cell_id /*cell*/,
                  int /*richness*/,
                  int /*avg distance*/,
-                 int /* source */>>
+                 cell_id /* source */>>
         possibilities;
 
-    for (int i = 0; i < CELL_COUNT; ++i) {
+    for (cell_id i{0}; i < CELL_COUNT; ++i.value) {
       if (game.me.trees.count(i) == 0 &&
           game.opponent.trees.count(i) == 0) {  // no tree
-        int source = can_plant(i, game.me, game);
-        if (source != -1) {
+        cell_id source = can_plant(i, game.me, game);
+        if (source != invalid_cell) {
           possibilities.push_back(
               make_tuple(i,
                          game.richness_of(i),
@@ -347,17 +415,19 @@ seed best_spot_to_plant(const game& game) {
       return seed{get<3>(*it), get<0>(*it)};
     }
   }
-  return seed{-1, -1};
+  return seed{invalid_cell, invalid_cell};
 }
 
 int empty_cells_of_value_3(const game& game) {
   int acc = 0;
-  for (int i = 0; i < CELL_COUNT; ++i) {
+  for (cell_id i{0}; i < CELL_COUNT; ++i.value) {
     game.tree_at(
         i, [&acc](...) { acc++; }, [] {});
   }
   return acc;
 }
+
+int is_shaded_after_turn(int cell, int offset) {}
 
 action decide(const game& game) {
   if (game.day == DAY_MAX) {
@@ -435,18 +505,19 @@ int main() {
   cin.ignore();
   game.cells.resize(numberOfCells);
   for (size_t i = 0; i < numberOfCells; i++) {
-    int index;  // 0 is the center cell, the next cells spiral outwards
-    cin >> index;
+    cell_id index;  // 0 is the center cell, the next cells spiral outwards
+    cin >> index.value;
     cell& cell_ref = game.cell_at(index);
 
     // 0 if the cell is unusable, 1-3 for usable cells
     cin >> cell_ref.richness;
 
     for (int n = 0; n < NEIGHBOR_COUNT; ++n) {
-      cin >> cell_ref.neighbors[n];
+      cin >> cell_ref.neighbors[n].value;
     }
     cin.ignore();
   }
+
   game.initialize_lookup();
 
   // game loop
@@ -477,7 +548,7 @@ int main() {
       bool mine;  // 1 if this is your tree
       // 1 if this tree is dormant
       tree t;
-      cin >> t.cell >> t.size >> mine >> t.dormant;
+      cin >> t.cell.value >> t.size >> mine >> t.dormant;
       cin.ignore();
       if (mine) {
         game.me.trees.emplace(t.cell, t);

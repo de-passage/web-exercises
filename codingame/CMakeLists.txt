@@ -1,3 +1,9 @@
+set(COMMON_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+function (set_common_include_directory TARGET_NAME)
+target_include_directories(${TARGET_NAME} AFTER PUBLIC ${COMMON_INCLUDES})
+endfunction()
+
 add_subdirectory(traffic-lights)
 add_subdirectory(ghost-in-the-cell)
 add_subdirectory(tic-tac-toe-ultimate)

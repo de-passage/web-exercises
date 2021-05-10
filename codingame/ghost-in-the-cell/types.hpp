@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <utility>
 
-#include "./strong_types.hpp"
+#include "strong_types.hpp"
 
 namespace gitc {
 
