@@ -477,7 +477,28 @@ vector<int> shadowed_after(const tree& tr, int offset, const game& game) {
   return result;
 }
 
+// return true if all spots not shadowing self & with >0 richness are taken
+bool no_good_spot(const game& game) {}
+
+// return true if all trees are size 3 or 0.
+bool all_tree_size_3(const game& game) {}
+
+// return true if we have enough to 1. complete a tree, 2. plant a new tree, 3.
+// grow all trees next turn
+bool enough_leftover(const game& game) {}
+
+// return -1 if fails. the best tree is a size 3 with minimum next turn shadow
+// on opponent trees, and best yield (which needs to be > 0)
+cell_id best_tree_to_complete(const game& game) {}
+
 action decide(const game& game) {
+  // Goal! last turn should complete all trees on the board! -> all trees should
+  // be size 3
+  // 0. It's completion time! Complete a number of
+  // trees, priority to those which would be shadowed next turn.
+  //    Completion time:
+  //      a. last turn
+
   if (game.day == DAY_MAX) {
     if (game.me.can_complete_lifecycle()) {
       vector<tree> v = transform<vector>(game.me.trees, get_second);
@@ -495,9 +516,36 @@ action decide(const game& game) {
       }
     }
   }
+  //      b. we don't have any good spot left, all trees are size 3, sun +
+  //      leftover gen next turn is enough to grow
+  //         replacements back
   else {
-    auto b = best_spot_to_plant(game);
-
+    if (no_good_spot(game) && all_trees_size_3(game) && enough_leftover(game)) {
+      auto best_tree = best_tree_to_complete(game);
+      if (best_tree != invalid_cell) {
+        return complete{best_tree};
+      }
+    }
+    // 1. Grow what you can. Priority: maximize point gen + point denial next
+    // turn
+    else {
+      auto best_tree = best_tree_to_grow(game);
+      if (best_tree != invalid) {
+        return grow{best_tree};
+      }
+      else {
+        // 2. Plant if can plant on good spot: no shadow with my own trees.
+        // Maximize cell value. Prioritize high denial areas.
+        auto best_spot = best_spot_to_plant(game);
+        if (best_spot.source != invalid_cell) {
+          return best_spot;
+        }
+      }
+    }
+  }
+  return wait;
+  // OLD, BEURK
+  if (false) {
     // If possible, take the 3 point spots;
     if (b.source >= 0 && game.richness_of(b.target) == 3) {
       return b;
