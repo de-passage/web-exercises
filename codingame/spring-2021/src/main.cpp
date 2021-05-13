@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <iostream>
+#include <numeric>
 #include <queue>
 #include <sstream>
 #include <string>
@@ -113,6 +114,13 @@ const auto tree_size = [](const auto& t) -> int { return t.second.size; };
 const auto of_size = [](int size) {
   return [size](const auto& p) { return tree_size(p) == size; };
 };
+const auto always = [](const auto& v) {
+  return [v](const auto&...) { return v; };
+};
+const auto zero_ = always(0);
+const auto true_ = always(true);
+const auto false_ = always(false);
+const auto do_nothing = [](const auto&...) {};
 
 struct player {
   int score;
@@ -130,6 +138,10 @@ struct player {
       return FWD(with_tree)(*it);
     }
     return FWD(without)();
+  }
+
+  int tree_size(cell_id cell) const {
+    return tree_or(cell, ::tree_size, zero_);
   }
 
   int trees_of_size(int size) const {
@@ -219,6 +231,10 @@ struct game {
     });
   }
 
+  int tree_size(cell_id cell) const {
+    return tree_at(cell, ::tree_size, zero_);
+  }
+
   int sun_direction() const { return sun_after(0); }
 
   int sun_after(int offset) const { return (day + offset) % 6; }
@@ -306,10 +322,12 @@ struct wait_t {
 } constexpr wait{};
 struct complete {
   constexpr explicit complete(const tree& t) : tree{t.cell} {}
+  constexpr explicit complete(const cell_id& c) : tree(c) {}
   cell_id tree;
 };
 struct grow {
   constexpr explicit grow(const tree& t) : cell{t.cell} {}
+  constexpr explicit grow(const cell_id& c) : cell(c) {}
   cell_id cell;
 };
 struct seed {
@@ -396,42 +414,47 @@ cell_id can_plant(cell_id cell, const player& player, const game& game) {
   return invalid_cell;
 }
 
-seed best_spot_to_plant(const game& game) {
-  if (game.me.can_plant()) {
-    vector<tuple<cell_id /*cell*/,
-                 int /*richness*/,
-                 int /*avg distance*/,
-                 cell_id /* source */>>
-        possibilities;
-
-    for (cell_id i{0}; i < CELL_COUNT; ++i.value) {
-      if (game.me.trees.count(i) == 0 &&
-          game.opponent.trees.count(i) == 0) {  // no tree
-        cell_id source = can_plant(i, game.me, game);
-        if (source != invalid_cell) {
-          possibilities.push_back(
-              make_tuple(i,
-                         game.richness_of(i),
-                         avg_distance_of_trees(i, game.me, game),
-                         source));
-        }
+// Return true if this spot doesn't shadow any size 2 tree
+bool no_shadowing(cell_id c, const game& game) {
+  for (int dir = 0; dir < 6; ++dir) {
+    cell_id current = c;
+    for (int i = 1; i <= 2; ++i) {
+      current = game.move(current, dir);
+      if (current == invalid_cell)
+        break;
+      if (game.me.tree_or(current, true_, false_)) {
+        return false;
       }
     }
+  }
 
-    if (!possibilities.empty()) {
-      auto it = max_element(possibilities.begin(),
-                            possibilities.end(),
-                            [&](const auto& p1, const auto& p2) -> bool {
-                              auto r1 = get<1>(p1);
-                              auto r2 = get<1>(p2);
+  return true;
+}
 
-                              if (r1 == r2) {
-                                return get<2>(p1) < get<2>(p2);
-                              }
-                              return r1 < r2;
-                            });
-      return seed{get<3>(*it), get<0>(*it)};
+seed best_spot_to_plant(const game& game) {
+  if (game.me.can_plant()) {
+    cell_id best = invalid_cell;
+    cell_id best_tree = invalid_cell;
+    int best_yield = 1;
+
+    for (cell_id c{0}; c < CELL_COUNT; ++c.value) {
+      if (!no_shadowing(c, game) || game.tree_at(c, true_, false_)) {
+        continue;  // can't plant on occupied cell, and don't want to plant on
+                   // shadowed tiles
+      }
+      cell_id source = can_plant(c, game.me, game);
+      if (source == invalid_cell) {
+        continue;  // can't plant if no tree in range or all asleep
+      }
+
+      int rc = game.richness_of(c);
+      if (rc > best_yield) {
+        best_yield = rc;
+        best = c;
+        best_tree = source;
+      }
     }
+    return seed{best_tree, best};
   }
   return seed{invalid_cell, invalid_cell};
 }
@@ -440,7 +463,7 @@ int empty_cells_of_value_3(const game& game) {
   int acc = 0;
   for (cell_id i{0}; i < CELL_COUNT; ++i.value) {
     game.tree_at(
-        i, [&acc](...) { acc++; }, [] {});
+        i, [&acc](...) { acc++; }, do_nothing);
   }
   return acc;
 }
@@ -454,7 +477,9 @@ int shadow_after_turn(cell_id cell, int offset, const game& game) {
   cell_id current = cell;
   for (int i = 1; i <= 3; ++i) {
     current = game.move(current, lookup_direction);
-    int size = game.tree_at(current, tree_size, [] { return 0; });
+    if (current == invalid_cell)
+      break;
+    int size = game.tree_at(current, tree_size, zero_);
     if (size >= i && size > max_size) {
       max_size = size;
     }
@@ -462,34 +487,182 @@ int shadow_after_turn(cell_id cell, int offset, const game& game) {
   return max_size;
 }
 
-// Returns the tree sizes that this tree shadows
-vector<int> shadowed_after(const tree& tr, int offset, const game& game) {
+// Returns the tree sizes that this tree shadows if the tree is grown by n sizes
+vector<int> shadowed_after(const tree& tr,
+                           int growth,
+                           int day_offset,
+                           const game& game,
+                           const player& player) {
   vector<int> result;
   cell_id current = tr.cell;
-  int sun_direction = game.sun_after(offset);
-  for (int i = 1; i <= tr.size; ++i) {
+  int sun_direction = game.sun_after(day_offset);
+  int tr_size = std::min(tr.size + growth, 0);
+  for (int i = 1; i <= tr_size; ++i) {
     current = game.move(current, sun_direction);
-    int target_size = game.tree_at(current, tree_size, [] { return 0; });
-    if (target_size <= tr.size) {
+    if (current == invalid_cell)
+      break;
+    int target_size = player.tree_size(current);
+    if (target_size <= tr_size) {
       result.push_back(target_size);
     }
   }
   return result;
 }
 
+// Returns the tree sizes that this tree shadows
+vector<int> shadowed_after(const tree& tr,
+                           int offset,
+                           const game& game,
+                           const player& player) {
+  return shadowed_after(tr, 0, offset, game, player);
+}
+
+// A tree I own can plant in this cell
+bool tree_in_distance(cell_id c, const game& game) {
+  for (const auto& tree : game.me.trees) {
+    if (game.distance(c, tree.second.cell) <= tree.second.size) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // return true if all spots not shadowing self & with >0 richness are taken
-bool no_good_spot(const game& game) {}
+bool no_good_spot(const game& game) {
+  for (cell_id i{0}; i < CELL_COUNT; ++i.value) {
+    if (game.tree_at(i, true_, false_) || game.richness_of(i) <= 1 ||
+        !tree_in_distance(i, game))
+      continue;
+
+    if (no_shadowing(i, game)) {
+      // cerr << "Still has a good spot at " << i.value << endl;
+      return false;
+    }
+  }
+  //   cerr << "no good spots" << endl;
+  return true;
+}
 
 // return true if all trees are size 3 or 0.
-bool all_tree_size_3(const game& game) {}
+bool all_small_trees_are_dormant(const game& game) {
+  for (const auto& tree : game.me.trees) {
+    if (tree.second.size != 3 && !tree.second.dormant) {
+      // cerr << "tree " << tree.first.value << " not size 3 (" <<
+      // tree_size(tree) << ") is awake" << endl;
+      return false;
+    }
+  }
+  //   cerr << "all trees are size 3 or dormant" << endl;
+  return true;
+}
+
+bool good_time_to_complete(const game& game) {
+  if (all_small_trees_are_dormant(game)) {
+    return true;
+  }
+  int three = game.me.trees_of_size(3);
+  int two = game.me.trees_of_size(2);
+  int one = game.me.trees_of_size(1);
+  int zero = game.me.trees_of_size(0);
+  return three >= two + one + zero;
+}
 
 // return true if we have enough to 1. complete a tree, 2. plant a new tree, 3.
 // grow all trees next turn
-bool enough_leftover(const game& game) {}
+bool enough_leftover(const game& game) {
+  auto sun = game.me.sun;
+  if (sun < COMPLETE_COST) {
+    return false;
+  }
+  sun -= COMPLETE_COST;
+  int seed_cost = game.me.trees_of_size(0);
+  if (seed_cost > sun) {
+    return false;
+  }
+  sun -= seed_cost;
+
+  // computation is a bit off, need rework
+  int grow_cost = 0;
+  int to_grow[3] = {0, 0, 0};
+  for (const auto& tree : game.me.trees) {
+    int ts = tree_size(tree);
+    if (ts < 3) {
+      grow_cost += growth_cost(tree.second, game.me) + to_grow[ts]++;
+    }
+    if (!shadow_after_turn(tree.second.cell, 1, game)) {
+      sun += ts;
+    }
+  }
+
+  //   cerr << "Estimated sun next turn: " << sun << "\nGrowth cost next turn: "
+  //   << grow_cost <<endl;
+  return sun >= grow_cost;
+}
 
 // return -1 if fails. the best tree is a size 3 with minimum next turn shadow
 // on opponent trees, and best yield (which needs to be > 0)
-cell_id best_tree_to_complete(const game& game) {}
+cell_id best_tree_to_complete(const game& game) {
+  cell_id best = invalid_cell;
+  int best_shadow = numeric_limits<int>::max();
+  int best_yield = -1;
+  int worst_shadow = numeric_limits<int>::min();
+  for (const auto& tree : game.me.trees) {
+    if (tree_size(tree) < 3 ||
+        game.richness_of(tree.second.cell) + game.nutrients == 0 ||
+        tree.second.dormant) {
+      continue;
+    }
+
+    auto op_shadow = shadowed_after(tree.second, 1, game, game.opponent);
+    int op_shadow_sum = accumulate(op_shadow.begin(), op_shadow.end(), 0);
+    auto me_shadow = shadowed_after(tree.second, 1, game, game.me);
+    int me_shadow_sum = accumulate(me_shadow.begin(), op_shadow.end(), 0);
+    int rc = game.richness_of(tree.second.cell);
+    if (op_shadow_sum < best_shadow ||
+        (op_shadow_sum == best_shadow &&
+         (rc > best_yield ||
+          (rc == best_yield && me_shadow_sum < best_shadow)))) {
+      best = tree.second.cell;
+      best_shadow = op_shadow_sum;
+      worst_shadow = me_shadow_sum;
+      best_yield = rc;
+    }
+  }
+  //   cerr  << "Shadows: " << best_shadow
+  //         << "\nYield: " << best_yield
+  //         << "\nSelf Shadow: " << worst_shadow << endl;
+  return best;
+}
+
+cell_id best_tree_to_grow(const game& game) {
+  cell_id best = invalid_cell;
+
+  int best_yield = -1;
+  int best_shadowing = -1;
+  int worst_shadowing = numeric_limits<int>::max();
+  for (const auto& tree : game.me.trees) {
+    if (tree.second.dormant || tree.second.size >= 3 ||
+        game.me.sun < growth_cost(tree.second, game.me))
+      continue;
+    auto op_shade = shadowed_after(tree.second, 1, 1, game, game.opponent);
+    auto me_shade = shadowed_after(tree.second, 1, 1, game, game.me);
+    int ops_sum = accumulate(op_shade.begin(), op_shade.end(), 0);
+    int mes_sum = accumulate(me_shade.begin(), me_shade.end(), 0);
+    int rc = game.richness_of(tree.second.cell);
+
+    if (ops_sum > best_shadowing ||
+        (ops_sum == best_shadowing &&
+         (mes_sum < worst_shadowing ||
+          (mes_sum == worst_shadowing && best_yield < rc)))) {
+      best = tree.second.cell;
+      best_yield = rc;
+      best_shadowing = ops_sum;
+      worst_shadowing = mes_sum;
+    }
+  }
+
+  return best;
+}
 
 action decide(const game& game) {
   // Goal! last turn should complete all trees on the board! -> all trees should
@@ -520,67 +693,32 @@ action decide(const game& game) {
   //      leftover gen next turn is enough to grow
   //         replacements back
   else {
-    if (no_good_spot(game) && all_trees_size_3(game) && enough_leftover(game)) {
-      auto best_tree = best_tree_to_complete(game);
-      if (best_tree != invalid_cell) {
-        return complete{best_tree};
-      }
+    cell_id best_tree = best_tree_to_complete(game);
+    if (best_tree != invalid_cell && all_small_trees_are_dormant(game) &&
+        enough_leftover(game)) {
+      // cerr << "can complete" << endl;
+      // cerr << "best tree to complete: " << best_tree.value << endl;
+      return complete{best_tree};
     }
     // 1. Grow what you can. Priority: maximize point gen + point denial next
     // turn
     else {
-      auto best_tree = best_tree_to_grow(game);
-      if (best_tree != invalid) {
+      // cerr << "cannot complete" << endl;
+      cell_id best_tree = best_tree_to_grow(game);
+      // cerr << "best tree to grow: " << best_tree.value << endl;
+      if (best_tree != invalid_cell) {
         return grow{best_tree};
       }
       else {
+        // cerr << "need to plant" << endl;
         // 2. Plant if can plant on good spot: no shadow with my own trees.
         // Maximize cell value. Prioritize high denial areas.
         auto best_spot = best_spot_to_plant(game);
+        // cerr << "best spot to plant: " << endl;
         if (best_spot.source != invalid_cell) {
           return best_spot;
         }
       }
-    }
-  }
-  return wait;
-  // OLD, BEURK
-  if (false) {
-    // If possible, take the 3 point spots;
-    if (b.source >= 0 && game.richness_of(b.target) == 3) {
-      return b;
-    }
-
-    // Otherwise find the cheapest action between growing and seeding
-    vector<tree> v = transform<vector>(game.me.trees, get_second);
-
-    // only consider trees that we can act on
-    auto last = remove_if(v.begin(), v.end(), [&](const tree& tree) {
-      return !tree.is_actionable(game.me);
-    });  // need to check that we'll be able to complete the tree
-
-    // Grow 3 cost first then seeds then rest
-    auto it = max_element(
-        v.begin(), last, [&](const tree& left, const tree& right) -> bool {
-          auto lr = game.richness_of(left);
-          auto rr = game.richness_of(right);
-
-          if (lr == rr) {
-            return left.size && left.size < right.size;
-          }
-          return lr < rr;
-        });
-
-    if (it != last) {
-      if (it->size != TREE_MAX) {
-        return grow{*it};
-      }
-      return complete{*it};
-    }
-
-    if (b.source >= 0 && game.me.trees_of_size(0) < 1 &&
-        empty_cells_of_value_3(game) < 2) {
-      return b;
     }
   }
   return wait;
