@@ -120,7 +120,6 @@ const auto always = [](const auto& v) {
 const auto zero_ = always(0);
 const auto true_ = always(true);
 const auto false_ = always(false);
-const auto do_nothing = [](const auto&...) {};
 
 struct player {
   int score;
@@ -164,41 +163,6 @@ bool tree::is_actionable(const player& player) const {
          (is_completeable() ? player.sun >= COMPLETE_COST
                             : player.sun >= growth_cost(*this, player));
 }
-
-template <class Source>
-struct directional_iterator {
- private:
-  constexpr static cell_id invalid_value{};
-
- public:
-  using value_type =
-      std::conditional_t<std::is_const_v<Source>, const cell, cell>;
-  using pointer = value_type*;
-  using reference = value_type&;
-  using difference_type = ptrdiff_t;
-  using iterator_category = std::forward_iterator_tag;
-
-  constexpr directional_iterator() = default;
-  constexpr explicit directional_iterator(const struct game& game,
-                                          cell_id value,
-                                          int direction)
-      : _game{&game},
-        _current{value >= 0 && value < CELL_COUNT && direction >= 0 &&
-                         direction < 6
-                     ? value
-                     : invalid_value},
-        _direction{direction} {}
-
-  reference operator*() const;
-  pointer operator->() const;
-
-  directional_iterator& operator++();
-
- private:
-  const struct game* _game{nullptr};
-  cell_id _current{invalid_value};
-  int _direction{0};
-};
 
 struct game {
   vector<cell> cells{};
@@ -249,17 +213,6 @@ struct game {
                : throw std::out_of_range("invalid direction");
   }
 
-  using iterator = directional_iterator<game>;
-  using const_iterator = directional_iterator<const game>;
-  iterator begin(cell_id cell, int direction) {
-    return iterator{*this, cell, direction};
-  }
-  const_iterator begin(cell_id cell, int direction) const {
-    return const_iterator{*this, cell, direction};
-  }
-  iterator end() { return iterator{}; }
-  const_iterator end() const { return const_iterator{}; }
-
  private:
   int _distance_lookup[37][37]{{-1}};
   int _compute_distance(cell_id start, cell_id end) {
@@ -298,25 +251,6 @@ struct game {
     }
   }
 };
-
-template <class T>
-typename directional_iterator<T>::reference directional_iterator<T>::operator*()
-    const {
-  return _game->cells[_current.value];
-}
-template <class T>
-typename directional_iterator<T>::pointer directional_iterator<T>::operator->()
-    const {
-  return &_game->cells[_current.value];
-}
-
-template <class T>
-directional_iterator<T>& directional_iterator<T>::operator++() {
-  if (_current == invalid_value || _game == nullptr)
-    throw std::out_of_range("Invalid iterator dereferenced");
-  _current = _game->cells[_current.value];
-  return *this;
-}
 
 struct wait_t {
 } constexpr wait{};
@@ -389,20 +323,6 @@ ostream& operator<<(ostream& out, const action& action) {
 
 const auto get_second = [](const auto& p) { return p.second; };
 
-int avg_distance_of_trees(cell_id cell,
-                          const player& player,
-                          const game& game) {
-  if (player.trees.size() == 0) {
-    return 0;
-  }
-
-  int acc = 0;
-  for (const auto& tree : player.trees) {
-    acc += game.distance(tree.second.cell, cell);
-  }
-  return acc / static_cast<int>(player.trees.size());
-}
-
 cell_id can_plant(cell_id cell, const player& player, const game& game) {
   for (const auto& tree : player.trees) {
     if (tree.second.cell != cell &&
@@ -429,43 +349,6 @@ bool no_shadowing(cell_id c, const game& game) {
   }
 
   return true;
-}
-
-seed best_spot_to_plant(const game& game) {
-  if (game.me.can_plant()) {
-    cell_id best = invalid_cell;
-    cell_id best_tree = invalid_cell;
-    int best_yield = 1;
-
-    for (cell_id c{0}; c < CELL_COUNT; ++c.value) {
-      if (!no_shadowing(c, game) || game.tree_at(c, true_, false_)) {
-        continue;  // can't plant on occupied cell, and don't want to plant on
-                   // shadowed tiles
-      }
-      cell_id source = can_plant(c, game.me, game);
-      if (source == invalid_cell) {
-        continue;  // can't plant if no tree in range or all asleep
-      }
-
-      int rc = game.richness_of(c);
-      if (rc > best_yield) {
-        best_yield = rc;
-        best = c;
-        best_tree = source;
-      }
-    }
-    return seed{best_tree, best};
-  }
-  return seed{invalid_cell, invalid_cell};
-}
-
-int empty_cells_of_value_3(const game& game) {
-  int acc = 0;
-  for (cell_id i{0}; i < CELL_COUNT; ++i.value) {
-    game.tree_at(
-        i, [&acc](...) { acc++; }, do_nothing);
-  }
-  return acc;
 }
 
 // Returns shade size at requested turn on this cell
@@ -517,32 +400,6 @@ vector<int> shadowed_after(const tree& tr,
   return shadowed_after(tr, 0, offset, game, player);
 }
 
-// A tree I own can plant in this cell
-bool tree_in_distance(cell_id c, const game& game) {
-  for (const auto& tree : game.me.trees) {
-    if (game.distance(c, tree.second.cell) <= tree.second.size) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// return true if all spots not shadowing self & with >0 richness are taken
-bool no_good_spot(const game& game) {
-  for (cell_id i{0}; i < CELL_COUNT; ++i.value) {
-    if (game.tree_at(i, true_, false_) || game.richness_of(i) <= 1 ||
-        !tree_in_distance(i, game))
-      continue;
-
-    if (no_shadowing(i, game)) {
-      // cerr << "Still has a good spot at " << i.value << endl;
-      return false;
-    }
-  }
-  //   cerr << "no good spots" << endl;
-  return true;
-}
-
 // return true if all trees are size 3 or 0.
 bool all_small_trees_are_dormant(const game& game) {
   for (const auto& tree : game.me.trees) {
@@ -554,17 +411,6 @@ bool all_small_trees_are_dormant(const game& game) {
   }
   //   cerr << "all trees are size 3 or dormant" << endl;
   return true;
-}
-
-bool good_time_to_complete(const game& game) {
-  if (all_small_trees_are_dormant(game)) {
-    return true;
-  }
-  int three = game.me.trees_of_size(3);
-  int two = game.me.trees_of_size(2);
-  int one = game.me.trees_of_size(1);
-  int zero = game.me.trees_of_size(0);
-  return three >= two + one + zero;
 }
 
 // return true if we have enough to 1. complete a tree, 2. plant a new tree, 3.
@@ -597,6 +443,34 @@ bool enough_leftover(const game& game) {
   //   cerr << "Estimated sun next turn: " << sun << "\nGrowth cost next turn: "
   //   << grow_cost <<endl;
   return sun >= grow_cost;
+}
+
+seed best_spot_to_plant(const game& game) {
+  if (game.me.can_plant()) {
+    cell_id best = invalid_cell;
+    cell_id best_tree = invalid_cell;
+    int best_yield = 1;
+
+    for (cell_id c{0}; c < CELL_COUNT; ++c.value) {
+      if (!no_shadowing(c, game) || game.tree_at(c, true_, false_)) {
+        continue;  // can't plant on occupied cell, and don't want to plant on
+                   // shadowed tiles
+      }
+      cell_id source = can_plant(c, game.me, game);
+      if (source == invalid_cell) {
+        continue;  // can't plant if no tree in range or all asleep
+      }
+
+      int rc = game.richness_of(c);
+      if (rc > best_yield) {
+        best_yield = rc;
+        best = c;
+        best_tree = source;
+      }
+    }
+    return seed{best_tree, best};
+  }
+  return seed{invalid_cell, invalid_cell};
 }
 
 // return -1 if fails. the best tree is a size 3 with minimum next turn shadow
@@ -640,10 +514,13 @@ cell_id best_tree_to_grow(const game& game) {
   int best_yield = -1;
   int best_shadowing = -1;
   int worst_shadowing = numeric_limits<int>::max();
+  int best_size = -1;
   for (const auto& tree : game.me.trees) {
     if (tree.second.dormant || tree.second.size >= 3 ||
         game.me.sun < growth_cost(tree.second, game.me))
       continue;
+
+    auto ts = tree_size(tree);
     auto op_shade = shadowed_after(tree.second, 1, 1, game, game.opponent);
     auto me_shade = shadowed_after(tree.second, 1, 1, game, game.me);
     int ops_sum = accumulate(op_shade.begin(), op_shade.end(), 0);
@@ -653,14 +530,15 @@ cell_id best_tree_to_grow(const game& game) {
     if (ops_sum > best_shadowing ||
         (ops_sum == best_shadowing &&
          (mes_sum < worst_shadowing ||
-          (mes_sum == worst_shadowing && best_yield < rc)))) {
+          (mes_sum == worst_shadowing &&
+           (best_yield < rc || (best_yield == rc && ts > best_size)))))) {
       best = tree.second.cell;
       best_yield = rc;
       best_shadowing = ops_sum;
       worst_shadowing = mes_sum;
+      best_size = ts;
     }
   }
-
   return best;
 }
 
