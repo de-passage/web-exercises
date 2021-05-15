@@ -213,6 +213,8 @@ struct game {
                : throw std::out_of_range("invalid direction");
   }
 
+  size_t tree_count() const { return me.trees.size() + opponent.trees.size(); }
+
  private:
   int _distance_lookup[37][37]{{-1}};
   int _compute_distance(cell_id start, cell_id end) {
@@ -324,14 +326,18 @@ ostream& operator<<(ostream& out, const action& action) {
 const auto get_second = [](const auto& p) { return p.second; };
 
 cell_id can_plant(cell_id cell, const player& player, const game& game) {
+  cell_id result = invalid_cell;
+  int distance = 4;
   for (const auto& tree : player.trees) {
-    if (tree.second.cell != cell &&
-        tree.second.size >= game.distance(tree.second.cell, cell) &&
-        !tree.second.dormant) {
-      return tree.second.cell;
+    if (tree.second.cell != cell && !tree.second.dormant) {
+      int d = game.distance(tree.second.cell, cell);
+      if (tree.second.size >= d && d < distance) {
+        distance = d;
+        result = tree.first;
+      }
     }
   }
-  return invalid_cell;
+  return result;
 }
 
 // Return true if this spot doesn't shadow any size 2 tree
@@ -502,6 +508,54 @@ int sun_generated_by_opponent(const game& game,
   return sun_generated(game, game.opponent, offset, changes);
 }
 
+int sun_generated_by_me(const game& game, int offset, cell_id tree) {
+  auto t = game.me.tree_or(tree, tree_size, zero_);
+  change_map changes;
+  changes.emplace(tree, change{std::min(t + offset, 3), true});
+  return sun_generated_by_me(game, offset, changes);
+}
+
+int sun_generated_by_opponent(const game& game, int offset, cell_id tree) {
+  auto t = game.opponent.tree_or(tree, tree_size, zero_);
+  change_map changes;
+  changes.emplace(tree, change{std::min(t + offset, 3), true});
+  return sun_generated_by_opponent(game, offset, changes);
+}
+
+int my_sun_generated_with_seed(const game& game, int offset, cell_id seed) {
+  change_map changes;
+  changes.emplace(seed, change{std::max(0, std::min(offset - 1, 3))});
+  return sun_generated_by_me(game, offset, changes);
+}
+
+int opponent_sun_generated_with_seed(const game& game,
+                                     int offset,
+                                     cell_id seed) {
+  change_map changes;
+  changes.emplace(seed, change{std::max(0, std::min(offset - 1, 3))});
+  return sun_generated_by_opponent(game, offset, changes);
+}
+
+class cache {
+ public:
+  void compute(const game& game) {
+    for (int i = 0; i < 6; ++i) {
+      _my_sun_generation[i] = sun_generated_by_me(game, i);
+      _opponent_sun_generation[i] = sun_generated_by_opponent(game, 1);
+    }
+  }
+
+  int opponent_sun_generation(int i = 0) const {
+    return _opponent_sun_generation[i % 6];
+  }
+
+  int my_sun_generation(int i = 0) const { return _my_sun_generation[i % 6]; }
+
+ private:
+  int _my_sun_generation[6];
+  int _opponent_sun_generation[6];
+} cache;
+
 // return true if we have enough to 1. complete a tree, 2. plant a new tree, 3.
 // grow all trees next turn
 bool enough_leftover(const game& game) {
@@ -539,9 +593,11 @@ seed best_spot_to_plant(const game& game) {
     cell_id best = invalid_cell;
     cell_id best_tree = invalid_cell;
     int best_yield = 1;
+    int best_sun_value = 0;
 
     for (cell_id c{0}; c < CELL_COUNT; ++c.value) {
-      if (!no_shadowing(c, game) || game.tree_at(c, true_, false_)) {
+      if ((game.tree_count() < 14 && !no_shadowing(c, game)) ||
+          game.tree_at(c, true_, false_)) {
         continue;  // can't plant on occupied cell, and don't want to plant on
                    // shadowed tiles
       }
@@ -550,11 +606,21 @@ seed best_spot_to_plant(const game& game) {
         continue;  // can't plant if no tree in range or all asleep
       }
 
+      int total_sun_gen = 0;
+      for (int i = 2; i < 7; ++i) {
+        int m = my_sun_generated_with_seed(game, i, c);
+        int o = opponent_sun_generated_with_seed(game, i, c);
+        total_sun_gen += (m - cache.my_sun_generation(i)) +
+                         (cache.opponent_sun_generation(i) - o);
+      }
+
       int rc = game.richness_of(c);
-      if (rc > best_yield) {
+      if (total_sun_gen > best_sun_value ||
+          (total_sun_gen == best_sun_value && rc > best_yield)) {
         best_yield = rc;
         best = c;
         best_tree = source;
+        best_sun_value = total_sun_gen;
       }
     }
     return seed{best_tree, best};
@@ -566,9 +632,18 @@ seed best_spot_to_plant(const game& game) {
 // on opponent trees, and best yield (which needs to be > 0)
 cell_id best_tree_to_complete(const game& game) {
   cell_id best = invalid_cell;
-  int best_shadow = numeric_limits<int>::max();
+  int best_opponent_score = numeric_limits<int>::max();
   int best_yield = -1;
-  int worst_shadow = numeric_limits<int>::min();
+  int best_score = numeric_limits<int>::min();
+  if (game.me.sun < COMPLETE_COST ||
+      game.me.trees.size() < 8 game.me.trees_of_size(3) <
+          game.opponent.trees_of_size(3) ||
+      (game.me.trees_of_size(1) + game.me.trees_of_size(2) <
+           game.opponent.trees_of_size(1) + game.opponent.trees_of_size(2) ||
+       game.me.score < game.opponent.score)) {
+    return best;
+  }
+
   for (const auto& tree : game.me.trees) {
     if (tree_size(tree) < 3 ||
         game.richness_of(tree.second.cell) + game.nutrients == 0 ||
@@ -576,24 +651,27 @@ cell_id best_tree_to_complete(const game& game) {
       continue;
     }
 
-    auto op_shadow = shadowed_after(tree.second, 1, game, game.opponent);
-    int op_shadow_sum = accumulate(op_shadow.begin(), op_shadow.end(), 0);
-    auto me_shadow = shadowed_after(tree.second, 1, game, game.me);
-    int me_shadow_sum = accumulate(me_shadow.begin(), op_shadow.end(), 0);
+    int total_sun_gen = 0;
+    int total_opponent_gen = 0;
+    change_map changes;
+    changes.emplace(tree.first, change{0, true});
+    for (int i = 1; i <= 3; ++i) {
+      total_sun_gen +=
+          cache.my_sun_generation(i) - sun_generated_by_me(game, i, changes);
+      total_opponent_gen += sun_generated_by_opponent(game, i, changes);
+    }
+
     int rc = game.richness_of(tree.second.cell);
-    if (op_shadow_sum < best_shadow ||
-        (op_shadow_sum == best_shadow &&
+    if (total_opponent_gen < best_opponent_score ||
+        (total_opponent_gen == best_opponent_score &&
          (rc > best_yield ||
-          (rc == best_yield && me_shadow_sum < best_shadow)))) {
+          (rc == best_yield && total_sun_gen > best_score)))) {
       best = tree.second.cell;
-      best_shadow = op_shadow_sum;
-      worst_shadow = me_shadow_sum;
+      best_score = total_sun_gen;
+      best_opponent_score = total_opponent_gen;
       best_yield = rc;
     }
   }
-  //   cerr  << "Shadows: " << best_shadow
-  //         << "\nYield: " << best_yield
-  //         << "\nSelf Shadow: " << worst_shadow << endl;
   return best;
 }
 
@@ -661,8 +739,7 @@ action decide(const game& game) {
   //         replacements back
   else {
     cell_id best_tree = best_tree_to_complete(game);
-    if (best_tree != invalid_cell && all_small_trees_are_dormant(game) &&
-        enough_leftover(game)) {
+    if (best_tree != invalid_cell) {
       // cerr << "can complete" << endl;
       // cerr << "best tree to complete: " << best_tree.value << endl;
       return complete{best_tree};
@@ -760,8 +837,8 @@ int main() {
           possibleAction);  // try printing something from here to start with
     }
 
-    // GROW cellIdx | SEED sourceIdx targetIdx | COMPLETE cellIdx | WAIT
-    // <message>
+    cache.compute(game);
+
     cout << decide(game) << endl;
   }
 }
