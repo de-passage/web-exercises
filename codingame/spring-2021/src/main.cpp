@@ -350,7 +350,8 @@ using change_map = unordered_map<cell_id, change, st::hash<cell_id>>;
 int sun_generated(const game& game,
                   const player& player,
                   int offset,
-                  const change_map& changes) {
+                  const change_map& changes,
+                  bool assuming_opponent_growth = false) {
   int sun_points = 0;
   int sun_direction = game.sun_after(offset);
   int lookup_direction = OPPOSITE_DIRECTION[sun_direction];
@@ -358,8 +359,10 @@ int sun_generated(const game& game,
   const auto find_tree = [&](cell_id c, int& tree_size, bool& same_player) {
     auto ch = changes.find(c);
     if (ch != changes.end()) {
-      tree_size = ch->second.tree_size;
       same_player = ch->second.same_player;
+      tree_size = assuming_opponent_growth && !same_player
+                      ? std::min(3, ch->second.tree_size + offset)
+                      : ch->second.tree_size;
     }
     else {
       player.tree_or(
@@ -372,7 +375,9 @@ int sun_generated(const game& game,
             game.tree_at(
                 c,
                 [&](const auto& tree) {
-                  tree_size = tree.second.size;
+                  tree_size = assuming_opponent_growth
+                                  ? std::min(3, tree.second.size + offset)
+                                  : tree.second.size;
                   same_player = false;
                 },
                 [&] { /* there is no tree at this spot */ });
@@ -419,8 +424,9 @@ int sun_generated(const game& game,
 
 int sun_generated_by_me(const game& game,
                         int offset = 1,
-                        const change_map& changes = {}) {
-  return sun_generated(game, game.me, offset, changes);
+                        const change_map& changes = {},
+                        bool assume_opponent_growth = false) {
+  return sun_generated(game, game.me, offset, changes, assume_opponent_growth);
 }
 
 int sun_generated_by_opponent(const game& game,
@@ -446,7 +452,7 @@ int sun_generated_by_opponent(const game& game, int offset, cell_id tree) {
 int my_sun_generated_with_seed(const game& game, int offset, cell_id seed) {
   change_map changes;
   changes.emplace(seed, change{std::max(0, std::min(offset - 1, 3)), true});
-  return sun_generated_by_me(game, offset, changes);
+  return sun_generated_by_me(game, offset, changes, true);
 }
 
 int opponent_sun_generated_with_seed(const game& game,
