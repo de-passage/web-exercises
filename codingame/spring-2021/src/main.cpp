@@ -340,85 +340,6 @@ cell_id can_plant(cell_id cell, const player& player, const game& game) {
   return result;
 }
 
-// Return true if this spot doesn't shadow any size 2 tree
-bool no_shadowing(cell_id c, const game& game) {
-  for (int dir = 0; dir < 6; ++dir) {
-    cell_id current = c;
-    for (int i = 1; i <= 2; ++i) {
-      current = game.move(current, dir);
-      if (current == invalid_cell)
-        break;
-      if (game.me.tree_or(current, true_, false_)) {
-        return false;
-      }
-    }
-  }
-
-  return true;
-}
-
-// Returns shade size at requested turn on this cell
-int shadow_after_turn(cell_id cell, int offset, const game& game) {
-  int sun_direction = game.sun_after(offset);
-  int lookup_direction = OPPOSITE_DIRECTION[sun_direction];
-
-  int max_size = 0;
-  cell_id current = cell;
-  for (int i = 1; i <= 3; ++i) {
-    current = game.move(current, lookup_direction);
-    if (current == invalid_cell)
-      break;
-    int size = game.tree_at(current, tree_size, zero_);
-    if (size >= i && size > max_size) {
-      max_size = size;
-    }
-  }
-  return max_size;
-}
-
-// Returns the tree sizes that this tree shadows if the tree is grown by n sizes
-vector<int> shadowed_after(const tree& tr,
-                           int growth,
-                           int day_offset,
-                           const game& game,
-                           const player& player) {
-  vector<int> result;
-  cell_id current = tr.cell;
-  int sun_direction = game.sun_after(day_offset);
-  int tr_size = std::min(tr.size + growth, 0);
-  for (int i = 1; i <= tr_size; ++i) {
-    current = game.move(current, sun_direction);
-    if (current == invalid_cell)
-      break;
-    int target_size = player.tree_size(current);
-    if (target_size <= tr_size) {
-      result.push_back(target_size);
-    }
-  }
-  return result;
-}
-
-// Returns the tree sizes that this tree shadows
-vector<int> shadowed_after(const tree& tr,
-                           int offset,
-                           const game& game,
-                           const player& player) {
-  return shadowed_after(tr, 0, offset, game, player);
-}
-
-// return true if all trees are size 3 or 0.
-bool all_small_trees_are_dormant(const game& game) {
-  for (const auto& tree : game.me.trees) {
-    if (tree.second.size != 3 && !tree.second.dormant) {
-      // cerr << "tree " << tree.first.value << " not size 3 (" <<
-      // tree_size(tree) << ") is awake" << endl;
-      return false;
-    }
-  }
-  //   cerr << "all trees are size 3 or dormant" << endl;
-  return true;
-}
-
 struct change {
   int tree_size;
   bool same_player;
@@ -524,7 +445,7 @@ int sun_generated_by_opponent(const game& game, int offset, cell_id tree) {
 
 int my_sun_generated_with_seed(const game& game, int offset, cell_id seed) {
   change_map changes;
-  changes.emplace(seed, change{std::max(0, std::min(offset - 1, 3))});
+  changes.emplace(seed, change{std::max(0, std::min(offset - 1, 3)), true});
   return sun_generated_by_me(game, offset, changes);
 }
 
@@ -532,8 +453,25 @@ int opponent_sun_generated_with_seed(const game& game,
                                      int offset,
                                      cell_id seed) {
   change_map changes;
-  changes.emplace(seed, change{std::max(0, std::min(offset - 1, 3))});
+  changes.emplace(seed, change{std::max(0, std::min(offset - 1, 3)), false});
   return sun_generated_by_opponent(game, offset, changes);
+}
+
+// Return true if this spot doesn't shadow any size 2 tree
+bool no_shadowing(cell_id c, const game& game) {
+  for (int dir = 0; dir < 6; ++dir) {
+    cell_id current = c;
+    for (int i = 1; i <= 2; ++i) {
+      current = game.move(current, dir);
+      if (current == invalid_cell)
+        break;
+      if (game.me.tree_or(current, true_, false_)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 class cache {
@@ -556,43 +494,13 @@ class cache {
   int _opponent_sun_generation[6];
 } cache;
 
-// return true if we have enough to 1. complete a tree, 2. plant a new tree, 3.
-// grow all trees next turn
-bool enough_leftover(const game& game) {
-  auto sun = game.me.sun;
-  if (sun < COMPLETE_COST) {
-    return false;
-  }
-  sun -= COMPLETE_COST;
-  int seed_cost = game.me.trees_of_size(0);
-  if (seed_cost > sun) {
-    return false;
-  }
-  sun -= seed_cost;
-
-  // computation is a bit off, need rework
-  int grow_cost = 0;
-  int to_grow[3] = {0, 0, 0};
-  for (const auto& tree : game.me.trees) {
-    int ts = tree_size(tree);
-    if (ts < 3) {
-      grow_cost += growth_cost(tree.second, game.me) + to_grow[ts]++;
-    }
-    if (!shadow_after_turn(tree.second.cell, 1, game)) {
-      sun += ts;
-    }
-  }
-
-  //   cerr << "Estimated sun next turn: " << sun << "\nGrowth cost next turn: "
-  //   << grow_cost <<endl;
-  return sun >= grow_cost;
-}
-
 seed best_spot_to_plant(const game& game) {
-  if (game.me.can_plant()) {
+  if (game.me.can_plant() &&
+      (game.me.trees.size() < game.opponent.trees.size() ||
+       game.me.trees_of_size(0) == 0)) {
     cell_id best = invalid_cell;
     cell_id best_tree = invalid_cell;
-    int best_yield = 1;
+    int best_yield = -1;
     int best_sun_value = 0;
 
     for (cell_id c{0}; c < CELL_COUNT; ++c.value) {
@@ -635,12 +543,15 @@ cell_id best_tree_to_complete(const game& game) {
   int best_opponent_score = numeric_limits<int>::max();
   int best_yield = -1;
   int best_score = numeric_limits<int>::min();
-  if (game.me.sun < COMPLETE_COST ||
-      game.me.trees.size() < 8 game.me.trees_of_size(3) <
-          game.opponent.trees_of_size(3) ||
-      (game.me.trees_of_size(1) + game.me.trees_of_size(2) <
-           game.opponent.trees_of_size(1) + game.opponent.trees_of_size(2) ||
-       game.me.score < game.opponent.score)) {
+  if (game.me.sun < COMPLETE_COST) {
+    return best;
+  }
+  if (game.me.trees_of_size(3) <= game.opponent.trees_of_size(3)) {
+    return best;
+  }
+  if (game.me.trees_of_size(1) + game.me.trees_of_size(2) <
+          game.opponent.trees_of_size(1) + game.opponent.trees_of_size(2) &&
+      game.me.score > game.opponent.score) {
     return best;
   }
 
@@ -657,8 +568,15 @@ cell_id best_tree_to_complete(const game& game) {
     changes.emplace(tree.first, change{0, true});
     for (int i = 1; i <= 3; ++i) {
       total_sun_gen +=
-          cache.my_sun_generation(i) - sun_generated_by_me(game, i, changes);
-      total_opponent_gen += sun_generated_by_opponent(game, i, changes);
+          (cache.my_sun_generation(i) - sun_generated_by_me(game, i, changes)) /
+          i;
+      total_opponent_gen += (sun_generated_by_opponent(game, i, changes) -
+                             cache.opponent_sun_generation(i)) /
+                            i;
+    }
+
+    if (total_sun_gen < -total_opponent_gen) {
+      continue;
     }
 
     int rc = game.richness_of(tree.second.cell);
@@ -679,8 +597,8 @@ cell_id best_tree_to_grow(const game& game) {
   cell_id best = invalid_cell;
 
   int best_yield = -1;
-  int best_shadowing = -1;
-  int worst_shadowing = numeric_limits<int>::max();
+  int worst_shadowing = std::numeric_limits<int>::min();
+  int best_shadowing = 0;
   int best_size = -1;
   for (const auto& tree : game.me.trees) {
     if (tree.second.dormant || tree.second.size >= 3 ||
@@ -688,21 +606,31 @@ cell_id best_tree_to_grow(const game& game) {
       continue;
 
     auto ts = tree_size(tree);
-    auto op_shade = shadowed_after(tree.second, 1, 1, game, game.opponent);
-    auto me_shade = shadowed_after(tree.second, 1, 1, game, game.me);
-    int ops_sum = accumulate(op_shade.begin(), op_shade.end(), 0);
-    int mes_sum = accumulate(me_shade.begin(), me_shade.end(), 0);
+    change_map changes;
+    changes.emplace(tree.first, change{tree.second.size + 1, true});
+
+    int op_point = 0;
+    int me_point = 0;
+    for (int i = 1; i <= std::min(6, DAY_MAX - game.day); ++i) {
+      op_point += (cache.opponent_sun_generation(i) -
+                   sun_generated_by_opponent(game, i, changes)) /
+                  i;
+      me_point += (sun_generated_by_me(game, i, changes) -
+                   cache.opponent_sun_generation(i)) /
+                  i;
+    }
+
     int rc = game.richness_of(tree.second.cell);
 
-    if (ops_sum > best_shadowing ||
-        (ops_sum == best_shadowing &&
-         (mes_sum < worst_shadowing ||
-          (mes_sum == worst_shadowing &&
+    if (op_point > worst_shadowing ||
+        (op_point == worst_shadowing &&
+         (me_point > best_shadowing ||
+          (me_point == best_shadowing &&
            (best_yield < rc || (best_yield == rc && ts > best_size)))))) {
       best = tree.second.cell;
       best_yield = rc;
-      best_shadowing = ops_sum;
-      worst_shadowing = mes_sum;
+      best_shadowing = me_point;
+      worst_shadowing = op_point;
       best_size = ts;
     }
   }
