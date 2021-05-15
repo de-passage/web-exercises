@@ -413,6 +413,95 @@ bool all_small_trees_are_dormant(const game& game) {
   return true;
 }
 
+struct change {
+  int tree_size;
+  bool same_player;
+};
+using change_map = unordered_map<cell_id, change, st::hash<cell_id>>;
+
+// Computes the sun generated at turn +offset by 'player' given the 'changes'
+int sun_generated(const game& game,
+                  const player& player,
+                  int offset,
+                  const change_map& changes) {
+  int sun_points = 0;
+  int sun_direction = game.sun_after(offset);
+  int lookup_direction = OPPOSITE_DIRECTION[sun_direction];
+
+  const auto find_tree = [&](cell_id c, int& tree_size, bool& same_player) {
+    auto ch = changes.find(c);
+    if (ch != changes.end()) {
+      tree_size = ch->second.tree_size;
+      same_player = ch->second.same_player;
+    }
+    else {
+      player.tree_or(
+          c,
+          [&](const auto& tr) {
+            tree_size = tr.second.size;
+            same_player = true;
+          },
+          [&] {
+            game.tree_at(
+                c,
+                [&](const auto& tree) {
+                  tree_size = tree.second.size;
+                  same_player = false;
+                },
+                [&] { /* there is no tree at this spot */ });
+          });
+    }
+  };
+
+  for (cell_id c{0}; c <= CELL_COUNT; ++c.value) {
+    // get the info we want about the tree, taking the changes into account
+    int tree_size = -1;
+    bool belongs_to_player = false;
+    find_tree(c, tree_size, belongs_to_player);
+
+    // No tree of value here, try next cell;
+    if (tree_size < 1 || !belongs_to_player)
+      continue;
+
+    // Compute the shadow at this cell, considering the changes
+    int max_size = 0;
+    cell_id current = c;
+    for (int i = 1; i <= 3; ++i) {
+      current = game.move(current, lookup_direction);
+      if (current == invalid_cell) {
+        break;
+      }
+
+      int size = -1;
+      find_tree(current,
+                size,
+                belongs_to_player);  // we don't care about that bool anymore
+      if (size >= i && size > max_size) {
+        max_size = size;
+      }
+    }
+
+    // we only get points if the size is bigger than the shadow
+    if (max_size < tree_size) {
+      sun_points += tree_size;
+    }
+  }
+
+  return sun_points;
+}
+
+int sun_generated_by_me(const game& game,
+                        int offset = 1,
+                        const change_map& changes = {}) {
+  return sun_generated(game, game.me, offset, changes);
+}
+
+int sun_generated_by_opponent(const game& game,
+                              int offset = 1,
+                              const change_map& changes = {}) {
+  return sun_generated(game, game.opponent, offset, changes);
+}
+
 // return true if we have enough to 1. complete a tree, 2. plant a new tree, 3.
 // grow all trees next turn
 bool enough_leftover(const game& game) {
