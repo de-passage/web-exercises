@@ -89,6 +89,25 @@ constexpr int growth_cost_base(int size) {
 }
 constexpr int OPPOSITE_DIRECTION[6] = {3, 4, 5, 0, 1, 2};
 
+template <class Type, class Underlying, class... Ts>
+using strong_pod = value_impl<
+    Type,
+    Underlying,
+    st::arithmetic,
+    st::comparable,
+    st::arithmetically_compatible_with<Underlying, st::construct_t<Type>>,
+    st::comparable_with<Underlying>,
+    Ts...>;
+
+template <class Type, class Underlying, class... Rest>
+struct tagged_value
+    : strong_pod<tagged_value<Type, Underlying, Rest...>, Underlying, Rest...> {
+  using base =
+      strong_pod<tagged_value<Type, Underlying, Rest...>, Underlying, Rest...>;
+  constexpr explicit tagged_value(Underlying value) : base(std::move(value)) {}
+};
+using score = tagged_value<struct score_tag, int>;
+
 using cell_id = strong_id<struct cell>;
 constexpr cell_id invalid_cell{-1};
 struct cell {
@@ -122,6 +141,8 @@ const auto true_ = always(true);
 const auto false_ = always(false);
 
 struct player {
+  enum who_t : char { me = 0, opponent = 1 };
+  who_t who;
   int score;
   int sun;
 
@@ -169,9 +190,16 @@ struct game {
   int day;
   int nutrients;
   int score;
-  player me;
-  player opponent;
+  player me{player::who_t::me};
+  player opponent{player::who_t::opponent};
   bool opponent_waiting;
+
+  player& other_player(const player& player) {
+    return player.who == player::who_t::me ? opponent : me;
+  }
+  const player& other_player(const player& player) const {
+    return const_cast<game*>(this)->other_player(player);
+  }
 
   cell& cell_at(cell_id cell) {
     return cell >= 0 && cell < CELL_COUNT
@@ -722,6 +750,40 @@ cell_id best_tree_to_grow(const game& game) {
         worst_shadowing = op_point;
         best_size = ts;
       }
+    }
+  }
+  return best;
+}
+
+game play(const game& g, const player& pl, const action& action) {
+  return g;
+}
+
+score heuristic(const game& g) {
+  return score{0};
+}
+
+action min_max(const game&, const player&);
+score simulate(const game& g, const player& pl, const action& action) {
+  game n = play(g, pl, action);
+  score s = heuristic(n);
+  const player& other = g.other_player(pl);
+  game np = play(g, other, min_max(g, other));
+  return s - heuristic(np);
+}
+
+vector<action> possible_actions(const game& game, const player& pl) {
+  return {};
+}
+
+action min_max(const game& game, const player& pl) {
+  action best{wait};
+  score best_score{0};
+  for (const auto& act : possible_actions(game, pl)) {
+    score r = simulate(game, pl, act);
+    if (r > best_score) {
+      best = act;
+      best_score = r;
     }
   }
   return best;
