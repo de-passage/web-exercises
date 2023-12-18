@@ -1,0 +1,77 @@
+[
+{
+  "directory": "C:/Users/Sylvain/Workspace/codewars-solutions/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -isystem googletest-src/googlemock/include -isystem googletest-src/googlemock -isystem googletest-src/googletest/include -isystem googletest-src/googletest -g -Xclang -gcodeview -O0 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wshadow -Werror -Wconversion -DGTEST_HAS_PTHREAD=0 -fexceptions -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Wchar-subscripts -Winline -Wredundant-decls -std=c++14 -o googletest-build\\googlemock\\CMakeFiles\\gmock_main.dir\\src\\gmock_main.cc.obj -c C:\\Users\\Sylvain\\Workspace\\codewars-solutions\\build\\googletest-src\\googlemock\\src\\gmock_main.cc",
+  "file": "C:/Users/Sylvain/Workspace/codewars-solutions/build/googletest-src/googlemock/src/gmock_main.cc"
+},
+{
+  "directory": "C:/Users/Sylvain/Workspace/codewars-solutions/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -Igoogletest-src/googlemock/include -Igoogletest-src/googlemock -isystem googletest-src/googletest/include -isystem googletest-src/googletest -g -Xclang -gcodeview -O0 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wshadow -Werror -Wconversion -DGTEST_HAS_PTHREAD=0 -fexceptions -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Wchar-subscripts -Winline -Wredundant-decls -std=c++14 -o googletest-build\\googlemock\\CMakeFiles\\gmock.dir\\src\\gmock-all.cc.obj -c C:\\Users\\Sylvain\\Workspace\\codewars-solutions\\build\\googletest-src\\googlemock\\src\\gmock-all.cc",
+  "file": "C:/Users/Sylvain/Workspace/codewars-solutions/build/googletest-src/googlemock/src/gmock-all.cc"
+},
+{
+  "directory": "C:/Users/Sylvain/Workspace/codewars-solutions/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -Igoogletest-src/googletest/include -Igoogletest-src/googletest -g -Xclang -gcodeview -O0 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wshadow -Werror -Wconversion -DGTEST_HAS_PTHREAD=0 -fexceptions -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Wchar-subscripts -Winline -Wredundant-decls -std=c++14 -o googletest-build\\googletest\\CMakeFiles\\gtest.dir\\src\\gtest-all.cc.obj -c C:\\Users\\Sylvain\\Workspace\\codewars-solutions\\build\\googletest-src\\googletest\\src\\gtest-all.cc",
+  "file": "C:/Users/Sylvain/Workspace/codewars-solutions/build/googletest-src/googletest/src/gtest-all.cc"
+},
+{
+  "directory": "C:/Users/Sylvain/Workspace/codewars-solutions/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -isystem googletest-src/googletest/include -isystem googletest-src/googletest -g -Xclang -gcodeview -O0 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wshadow -Werror -Wconversion -DGTEST_HAS_PTHREAD=0 -fexceptions -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Wchar-subscripts -Winline -Wredundant-decls -std=c++14 -o googletest-build\\googletest\\CMakeFiles\\gtest_main.dir\\src\\gtest_main.cc.obj -c C:\\Users\\Sylvain\\Workspace\\codewars-solutions\\build\\googletest-src\\googletest\\src\\gtest_main.cc",
+  "file": "C:/Users/Sylvain/Workspace/codewars-solutions/build/googletest-src/googletest/src/gtest_main.cc"
+},
+{
+  "directory": "C:/Users/Sylvain/Workspace/codewars-solutions/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -isystem googletest-src/googletest/include -isystem googletest-src/googletest -g -Xclang -gcodeview -O0 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wextra -pedantic -Wconversion -std=c++14 -o codingame\\traffic-lights\\CMakeFiles\\traffic-lights.dir\\traffic_lights.cpp.obj -c C:\\Users\\Sylvain\\Workspace\\codewars-solutions\\codingame\\traffic-lights\\traffic_lights.cpp",
+  "file": "C:/Users/Sylvain/Workspace/codewars-solutions/codingame/traffic-lights/traffic_lights.cpp"
+},
+{
+  "directory": "C:/Users/Sylvain/Workspace/codewars-solutions/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -Igoogletest-src/googletest/include -I../codingame/include -I../codingame/ghost-in-the-cell -I../codingame/ghost-in-the-cell/simulator -g -Xclang -gcodeview -O0 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wextra -pedantic -Wconversion -std=c++14 -o codingame\\ghost-in-the-cell\\CMakeFiles\\gitc-referee.dir\\simulator\\simulator.cpp.obj -c C:\\Users\\Sylvain\\Workspace\\codewars-solutions\\codingame\\ghost-in-the-cell\\simulator\\simulator.cpp",
+  "file": "C:/Users/Sylvain/Workspace/codewars-solutions/codingame/ghost-in-the-cell/simulator/simulator.cpp"
+},
+{
+  "directory": "C:/Users/Sylvain/Workspace/codewars-solutions/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -Igoogletest-src/googletest/include -I../codingame/include -g -Xclang -gcodeview -O0 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wextra -pedantic -Wconversion -std=c++14 -o codingame\\ghost-in-the-cell\\CMakeFiles\\ghost-in-the-cell.dir\\ghost_in_the_cell.cpp.obj -c C:\\Users\\Sylvain\\Workspace\\codewars-solutions\\codingame\\ghost-in-the-cell\\ghost_in_the_cell.cpp",
+  "file": "C:/Users/Sylvain/Workspace/codewars-solutions/codingame/ghost-in-the-cell/ghost_in_the_cell.cpp"
+},
+{
+  "directory": "C:/Users/Sylvain/Workspace/codewars-solutions/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -I../codingame/include -I../codingame/ghost-in-the-cell -isystem googletest-src/googletest/include -isystem googletest-src/googletest -g -Xclang -gcodeview -O0 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wextra -pedantic -Wconversion -std=c++14 -o codingame\\ghost-in-the-cell\\CMakeFiles\\gitc.dir\\tests\\gitc_test.cpp.obj -c C:\\Users\\Sylvain\\Workspace\\codewars-solutions\\codingame\\ghost-in-the-cell\\tests\\gitc_test.cpp",
+  "file": "C:/Users/Sylvain/Workspace/codewars-solutions/codingame/ghost-in-the-cell/tests/gitc_test.cpp"
+},
+{
+  "directory": "C:/Users/Sylvain/Workspace/codewars-solutions/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -I../codingame/include -I../codingame/ghost-in-the-cell -isystem googletest-src/googletest/include -isystem googletest-src/googletest -g -Xclang -gcodeview -O0 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wextra -pedantic -Wconversion -std=c++14 -o codingame\\ghost-in-the-cell\\CMakeFiles\\gitc.dir\\tests\\graph.cpp.obj -c C:\\Users\\Sylvain\\Workspace\\codewars-solutions\\codingame\\ghost-in-the-cell\\tests\\graph.cpp",
+  "file": "C:/Users/Sylvain/Workspace/codewars-solutions/codingame/ghost-in-the-cell/tests/graph.cpp"
+},
+{
+  "directory": "C:/Users/Sylvain/Workspace/codewars-solutions/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -isystem googletest-src/googletest/include -isystem googletest-src/googletest -g -Xclang -gcodeview -O0 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wextra -pedantic -Wconversion -std=c++14 -o codingame\\tic-tac-toe-ultimate\\CMakeFiles\\tic-tac-toe-ultimate.dir\\logic.cpp.obj -c C:\\Users\\Sylvain\\Workspace\\codewars-solutions\\codingame\\tic-tac-toe-ultimate\\logic.cpp",
+  "file": "C:/Users/Sylvain/Workspace/codewars-solutions/codingame/tic-tac-toe-ultimate/logic.cpp"
+},
+{
+  "directory": "C:/Users/Sylvain/Workspace/codewars-solutions/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -Igoogletest-src/googletest/include -I../codingame/code-vs-zombie/include -g -Xclang -gcodeview -O0 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wextra -pedantic -Wconversion -std=c++14 -o codingame\\code-vs-zombie\\CMakeFiles\\code-vs-zombie.dir\\code_vs_zombie.cpp.obj -c C:\\Users\\Sylvain\\Workspace\\codewars-solutions\\codingame\\code-vs-zombie\\code_vs_zombie.cpp",
+  "file": "C:/Users/Sylvain/Workspace/codewars-solutions/codingame/code-vs-zombie/code_vs_zombie.cpp"
+},
+{
+  "directory": "C:/Users/Sylvain/Workspace/codewars-solutions/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -I../codingame/code-vs-zombie/include -isystem googletest-src/googletest/include -isystem googletest-src/googletest -g -Xclang -gcodeview -O0 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wextra -pedantic -Wconversion -std=c++14 -o codingame\\code-vs-zombie\\CMakeFiles\\cvsz.dir\\tests\\basic.cpp.obj -c C:\\Users\\Sylvain\\Workspace\\codewars-solutions\\codingame\\code-vs-zombie\\tests\\basic.cpp",
+  "file": "C:/Users/Sylvain/Workspace/codewars-solutions/codingame/code-vs-zombie/tests/basic.cpp"
+},
+{
+  "directory": "C:/Users/Sylvain/Workspace/codewars-solutions/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -isystem googletest-src/googletest/include -isystem googletest-src/googletest -g -Xclang -gcodeview -O0 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wextra -pedantic -Wconversion -std=c++14 -o codingame\\golf-winamax\\CMakeFiles\\golf-winamax.dir\\golf_winamax.cpp.obj -c C:\\Users\\Sylvain\\Workspace\\codewars-solutions\\codingame\\golf-winamax\\golf_winamax.cpp",
+  "file": "C:/Users/Sylvain/Workspace/codewars-solutions/codingame/golf-winamax/golf_winamax.cpp"
+},
+{
+  "directory": "C:/Users/Sylvain/Workspace/codewars-solutions/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -isystem googletest-src/googletest/include -isystem googletest-src/googletest -g -Xclang -gcodeview -O0 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wextra -pedantic -Wconversion -std=c++14 -o codingame\\binary-search\\CMakeFiles\\binary_search.dir\\binary_search.cpp.obj -c C:\\Users\\Sylvain\\Workspace\\codewars-solutions\\codingame\\binary-search\\binary_search.cpp",
+  "file": "C:/Users/Sylvain/Workspace/codewars-solutions/codingame/binary-search/binary_search.cpp"
+},
+{
+  "directory": "C:/Users/Sylvain/Workspace/codewars-solutions/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -Igoogletest-src/googletest/include -I../codingame/include -g -Xclang -gcodeview -O0 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wextra -pedantic -Wconversion -std=c++14 -o codingame\\spring-2021\\CMakeFiles\\spring-2021.dir\\src\\main.cpp.obj -c C:\\Users\\Sylvain\\Workspace\\codewars-solutions\\codingame\\spring-2021\\src\\main.cpp",
+  "file": "C:/Users/Sylvain/Workspace/codewars-solutions/codingame/spring-2021/src/main.cpp"
+}
+]

@@ -6,6 +6,7 @@
 namespace dpsg {
 namespace strong_types {
 
+// clang-tidy off
 #define DPSG_DEFINE_BINARY_OPERATOR(name, sym)                             \
   struct name##_t {                                                        \
     template <class T,                                                     \
@@ -50,6 +51,7 @@ namespace strong_types {
 DPSG_APPLY_TO_BINARY_OPERATORS(DPSG_DEFINE_BINARY_OPERATOR)
 DPSG_APPLY_TO_SELF_ASSIGNING_BINARY_OPERATORS(DPSG_DEFINE_BINARY_OPERATOR)
 DPSG_APPLY_TO_UNARY_OPERATORS(DPSG_DEFINE_UNARY_OPERATOR)
+// clang-tidy on
 
 struct post_increment_t {
   template <class U>
